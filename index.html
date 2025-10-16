@@ -1142,14 +1142,80 @@
         const modalBody = document.getElementById('modalBody');
         const modalTitle = document.getElementById('modalTitle');
 
+        // Chaves para armazenamento
+        const STORAGE_KEYS = {
+            ACTIVE_COMANDAS: 'barSena_activeComandas',
+            KITCHEN_ORDERS: 'barSena_kitchenOrders'
+        };
+
         // Inicialização
         function init() {
+            loadFromStorage();
             renderCategories();
             renderDrinks();
             updateOrderDisplay();
             renderActiveComandas();
             renderKitchenOrders();
             setupEventListeners();
+            startStorageSync();
+        }
+
+        // Carregar dados do armazenamento
+        function loadFromStorage() {
+            try {
+                const savedComandas = localStorage.getItem(STORAGE_KEYS.ACTIVE_COMANDAS);
+                const savedKitchenOrders = localStorage.getItem(STORAGE_KEYS.KITCHEN_ORDERS);
+                
+                if (savedComandas) {
+                    activeComandas = JSON.parse(savedComandas);
+                }
+                
+                if (savedKitchenOrders) {
+                    kitchenOrders = JSON.parse(savedKitchenOrders);
+                }
+            } catch (e) {
+                console.error('Erro ao carregar dados do armazenamento:', e);
+            }
+        }
+
+        // Salvar dados no armazenamento
+        function saveToStorage() {
+            try {
+                localStorage.setItem(STORAGE_KEYS.ACTIVE_COMANDAS, JSON.stringify(activeComandas));
+                localStorage.setItem(STORAGE_KEYS.KITCHEN_ORDERS, JSON.stringify(kitchenOrders));
+            } catch (e) {
+                console.error('Erro ao salvar dados no armazenamento:', e);
+            }
+        }
+
+        // Sincronizar dados entre abas/janelas
+        function startStorageSync() {
+            // Verificar alterações no armazenamento a cada segundo
+            setInterval(() => {
+                try {
+                    const savedComandas = localStorage.getItem(STORAGE_KEYS.ACTIVE_COMANDAS);
+                    const savedKitchenOrders = localStorage.getItem(STORAGE_KEYS.KITCHEN_ORDERS);
+                    
+                    if (savedComandas) {
+                        const parsedComandas = JSON.parse(savedComandas);
+                        if (JSON.stringify(parsedComandas) !== JSON.stringify(activeComandas)) {
+                            activeComandas = parsedComandas;
+                            renderActiveComandas();
+                        }
+                    }
+                    
+                    if (savedKitchenOrders) {
+                        const parsedKitchenOrders = JSON.parse(savedKitchenOrders);
+                        if (JSON.stringify(parsedKitchenOrders) !== JSON.stringify(kitchenOrders)) {
+                            kitchenOrders = parsedKitchenOrders;
+                            renderKitchenOrders();
+                            updateKitchenBadge();
+                        }
+                    }
+                } catch (e) {
+                    console.error('Erro na sincronização:', e);
+                }
+            }, 1000);
         }
 
         // Configurar event listeners
@@ -1440,7 +1506,8 @@
             comandaNumberInput.value = '';
             clientNameInput.value = '';
             
-            // Atualizar exibição das comandas ativas
+            // Salvar e atualizar exibição
+            saveToStorage();
             renderActiveComandas();
             switchTab('comandas');
             
@@ -1482,7 +1549,8 @@
             comandaNumberInput.value = '';
             clientNameInput.value = '';
             
-            // Atualizar exibição dos pedidos do bar/cozinha
+            // Salvar e atualizar exibição
+            saveToStorage();
             renderKitchenOrders();
             updateKitchenBadge();
             switchTab('kitchen');
@@ -1560,6 +1628,7 @@
                 kitchenOrders[orderIndex].status = kitchenOrders[orderIndex].status === 'pending' ? 'ready' : 'pending';
                 kitchenOrders[orderIndex].readyAt = kitchenOrders[orderIndex].status === 'ready' ? new Date() : null;
                 
+                saveToStorage();
                 renderKitchenOrders();
                 updateKitchenBadge();
                 
@@ -1711,7 +1780,8 @@
                 // Remover comanda da lista de ativas
                 activeComandas.splice(comandaIndex, 1);
                 
-                // Atualizar exibição
+                // Salvar e atualizar exibição
+                saveToStorage();
                 renderActiveComandas();
                 
                 alert(`Comanda ${comandaNumber} finalizada. Total: R$ ${total.toFixed(2)}`);
