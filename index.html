@@ -1,0 +1,1725 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Comanda - Bar Sena</title>
+    <style>
+        :root {
+            --primary: #1a1a2e;
+            --secondary: #16213e;
+            --accent: #0f3460;
+            --highlight: #e94560;
+            --light: #f5f5f5;
+            --dark: #0d0d1a;
+            --success: #2ecc71;
+            --warning: #f39c12;
+            --danger: #e74c3c;
+            --shadow: 0 2px 10px rgba(0,0,0,0.1);
+            --radius: 12px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #f0f2f5;
+            color: var(--dark);
+            line-height: 1.6;
+            font-size: 14px;
+            min-height: 100vh;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 100%;
+            padding: 10px;
+            margin: 0 auto;
+        }
+
+        /* Header Responsivo */
+        header {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            padding: 12px 0;
+            box-shadow: var(--shadow);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 10px;
+            flex-wrap: wrap;
+        }
+
+        .logo {
+            font-size: clamp(1.2rem, 4vw, 1.8rem);
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        .logo span {
+            color: var(--highlight);
+            margin-left: 4px;
+        }
+
+        .logo-icon {
+            font-size: clamp(1.4rem, 5vw, 2rem);
+            margin-right: 8px;
+        }
+
+        /* Layout Principal Responsivo */
+        .main-content {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .card {
+            background: white;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            padding: clamp(12px, 3vw, 20px);
+            margin-bottom: 15px;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        }
+
+        .card-title {
+            font-size: clamp(1.1rem, 4vw, 1.3rem);
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid var(--accent);
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+        }
+
+        .card-title i {
+            margin-right: 8px;
+            color: var(--accent);
+            font-size: clamp(1rem, 4vw, 1.2rem);
+        }
+
+        /* Categorias Responsiva */
+        .categories {
+            display: flex;
+            overflow-x: auto;
+            gap: 8px;
+            margin-bottom: 15px;
+            padding-bottom: 8px;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+        }
+
+        .categories::-webkit-scrollbar {
+            display: none;
+        }
+
+        .category-btn {
+            background: white;
+            border: 2px solid var(--accent);
+            border-radius: 20px;
+            padding: 8px 16px;
+            cursor: pointer;
+            font-weight: 600;
+            color: var(--accent);
+            transition: all 0.3s ease;
+            white-space: nowrap;
+            font-size: clamp(0.8rem, 3vw, 0.9rem);
+            flex-shrink: 0;
+        }
+
+        .category-btn.active, .category-btn:hover {
+            background: var(--accent);
+            color: white;
+            transform: scale(1.05);
+        }
+
+        /* Grid de Bebidas Responsivo */
+        .drinks-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 12px;
+        }
+
+        .drink-item {
+            background: white;
+            border-radius: 10px;
+            padding: 12px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 1px solid #e0e0e0;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            height: 100%;
+            min-height: 120px;
+        }
+
+        .drink-item:active {
+            transform: scale(0.95);
+        }
+
+        .drink-icon {
+            font-size: clamp(1.8rem, 6vw, 2.5rem);
+            margin-bottom: 8px;
+            color: var(--accent);
+        }
+
+        .drink-name {
+            font-weight: 600;
+            margin-bottom: 4px;
+            font-size: clamp(0.8rem, 3vw, 0.9rem);
+            line-height: 1.3;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .drink-details {
+            font-size: clamp(0.7rem, 2.5vw, 0.75rem);
+            color: #666;
+            margin-bottom: 6px;
+        }
+
+        .drink-price {
+            color: var(--highlight);
+            font-weight: bold;
+            font-size: clamp(0.9rem, 3vw, 1rem);
+        }
+
+        /* Pedido Atual Responsivo */
+        .order-items {
+            max-height: 250px;
+            overflow-y: auto;
+            margin-bottom: 12px;
+            border: 1px solid #eee;
+            border-radius: 8px;
+            padding: 8px;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .order-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid #eee;
+            gap: 8px;
+        }
+
+        .order-item:last-child {
+            border-bottom: none;
+        }
+
+        .item-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .item-name {
+            font-weight: 600;
+            margin-bottom: 2px;
+            font-size: clamp(0.85rem, 3vw, 0.9rem);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .item-price {
+            color: #666;
+            font-size: clamp(0.75rem, 2.5vw, 0.8rem);
+        }
+
+        .item-controls {
+            display: flex;
+            align-items: center;
+            flex-shrink: 0;
+            gap: 4px;
+        }
+
+        .quantity-btn {
+            background: var(--light);
+            border: none;
+            width: clamp(24px, 6vw, 28px);
+            height: clamp(24px, 6vw, 28px);
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: var(--accent);
+            transition: all 0.2s ease;
+            font-size: clamp(0.8rem, 3vw, 0.9rem);
+        }
+
+        .quantity-btn:active {
+            background: var(--accent);
+            color: white;
+        }
+
+        .quantity {
+            margin: 0 8px;
+            font-weight: bold;
+            min-width: 18px;
+            text-align: center;
+            font-size: clamp(0.85rem, 3vw, 0.9rem);
+        }
+
+        .remove-btn {
+            background: var(--danger);
+            color: white;
+            border: none;
+            padding: 6px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: clamp(0.7rem, 2.5vw, 0.75rem);
+            transition: background 0.3s ease;
+            white-space: nowrap;
+        }
+
+        .remove-btn:active {
+            background: #c0392b;
+        }
+
+        .order-total {
+            display: flex;
+            justify-content: space-between;
+            font-weight: bold;
+            font-size: clamp(1.1rem, 4vw, 1.3rem);
+            padding: 12px 0;
+            border-top: 2px solid #eee;
+            color: var(--primary);
+        }
+
+        /* Botões de Ação Responsivos */
+        .action-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .btn {
+            padding: clamp(10px, 3vw, 12px) clamp(12px, 3vw, 15px);
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            font-size: clamp(0.85rem, 3vw, 0.9rem);
+            flex: 1;
+        }
+
+        .btn:active {
+            transform: translateY(-2px);
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: white;
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+
+        /* Comanda Info Responsivo */
+        .comanda-info {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .comanda-input {
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: clamp(0.9rem, 3vw, 1rem);
+            width: 100%;
+            transition: border-color 0.3s ease;
+        }
+
+        .comanda-input:focus {
+            border-color: var(--accent);
+            outline: none;
+        }
+
+        /* Comandas Ativas Responsivo */
+        .active-comandas {
+            margin-top: 15px;
+        }
+
+        .comanda-item {
+            background: white;
+            border-radius: 10px;
+            padding: 12px;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-left: 4px solid var(--accent);
+            gap: 10px;
+        }
+
+        .comanda-details {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .comanda-number {
+            font-weight: bold;
+            font-size: clamp(0.9rem, 3vw, 1rem);
+            color: var(--primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .comanda-client {
+            color: #666;
+            font-size: clamp(0.75rem, 2.5vw, 0.8rem);
+            margin-top: 2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .comanda-items {
+            font-size: clamp(0.7rem, 2.5vw, 0.75rem);
+            color: #888;
+            margin-top: 3px;
+        }
+
+        .comanda-total {
+            font-weight: bold;
+            color: var(--highlight);
+            font-size: clamp(0.9rem, 3vw, 1rem);
+            margin-bottom: 5px;
+            text-align: right;
+        }
+
+        .comanda-actions {
+            display: flex;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+
+        .comanda-btn {
+            padding: 6px 10px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: clamp(0.7rem, 2.5vw, 0.75rem);
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+
+        .comanda-btn:active {
+            transform: scale(0.95);
+        }
+
+        .comanda-btn.view {
+            background: var(--accent);
+            color: white;
+        }
+
+        .comanda-btn.finalize {
+            background: var(--success);
+            color: white;
+        }
+
+        /* Estados Vazios */
+        .empty-state {
+            text-align: center;
+            padding: 30px 15px;
+            color: #888;
+        }
+
+        .empty-state i {
+            font-size: clamp(2rem, 8vw, 3rem);
+            margin-bottom: 12px;
+            color: #ddd;
+        }
+
+        .empty-state p {
+            font-size: clamp(0.9rem, 3vw, 1rem);
+        }
+
+        /* Navegação por Abas Responsiva */
+        .tab-navigation {
+            display: flex;
+            background: white;
+            border-radius: var(--radius);
+            padding: 5px;
+            margin-bottom: 15px;
+            box-shadow: var(--shadow);
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 12px 8px;
+            text-align: center;
+            background: transparent;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            color: #666;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: clamp(0.8rem, 3vw, 0.9rem);
+            min-width: 80px;
+            white-space: nowrap;
+        }
+
+        .tab-btn.active {
+            background: var(--accent);
+            color: white;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Seção de Pedidos para Bar e Cozinha Responsiva */
+        .kitchen-orders {
+            margin-top: 20px;
+        }
+
+        .order-card {
+            background: white;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 12px;
+            border-left: 4px solid var(--warning);
+            box-shadow: var(--shadow);
+        }
+
+        .order-card.ready {
+            border-left-color: var(--success);
+        }
+
+        .order-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 10px;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .order-id {
+            font-weight: bold;
+            font-size: clamp(1rem, 3.5vw, 1.1rem);
+            color: var(--primary);
+        }
+
+        .order-time {
+            font-size: clamp(0.75rem, 2.5vw, 0.8rem);
+            color: #666;
+        }
+
+        .order-items-list {
+            margin-bottom: 12px;
+        }
+
+        .order-item-kitchen {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 0;
+            border-bottom: 1px solid #f0f0f0;
+            gap: 8px;
+        }
+
+        .order-item-kitchen:last-child {
+            border-bottom: none;
+        }
+
+        .order-item-quantity {
+            font-weight: bold;
+            margin-right: 8px;
+            color: var(--accent);
+            font-size: clamp(0.8rem, 3vw, 0.9rem);
+        }
+
+        .order-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .status-btn {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: clamp(0.75rem, 2.5vw, 0.8rem);
+            transition: all 0.2s ease;
+            flex: 1;
+        }
+
+        .status-btn.ready {
+            background: var(--success);
+            color: white;
+        }
+
+        .status-btn.pending {
+            background: var(--warning);
+            color: white;
+        }
+
+        /* Badge de notificação */
+        .notification-badge {
+            background: var(--highlight);
+            color: white;
+            border-radius: 50%;
+            width: clamp(18px, 5vw, 20px);
+            height: clamp(18px, 5vw, 20px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: clamp(0.65rem, 2vw, 0.7rem);
+            font-weight: bold;
+            position: absolute;
+            top: -5px;
+            right: -5px;
+        }
+
+        .tab-with-badge {
+            position: relative;
+        }
+
+        /* Animações */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.3s ease forwards;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        .pulse {
+            animation: pulse 1s infinite;
+        }
+
+        /* Modal Responsivo */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            backdrop-filter: blur(5px);
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: var(--radius);
+            padding: 20px;
+            width: 100%;
+            max-width: 500px;
+            max-height: 80vh;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #666;
+            padding: 5px;
+        }
+
+        /* Media Queries para Tablets */
+        @media (min-width: 768px) {
+            .container {
+                max-width: 750px;
+                padding: 15px;
+            }
+            
+            .drinks-grid {
+                grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+                gap: 15px;
+            }
+            
+            .comanda-info {
+                flex-direction: row;
+            }
+            
+            .action-buttons {
+                flex-direction: row;
+            }
+            
+            .order-header {
+                flex-wrap: nowrap;
+            }
+            
+            .tab-btn {
+                padding: 12px;
+            }
+        }
+
+        /* Media Queries para Desktop */
+        @media (min-width: 1024px) {
+            .container {
+                max-width: 1200px;
+                padding: 20px;
+            }
+            
+            .main-content {
+                display: grid;
+                grid-template-columns: 1fr 350px;
+                gap: 20px;
+            }
+            
+            .tab-navigation {
+                display: none;
+            }
+            
+            .tab-content {
+                display: block;
+            }
+            
+            .drinks-grid {
+                grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+                gap: 20px;
+            }
+            
+            .order-items {
+                max-height: 350px;
+            }
+        }
+
+        /* Media Queries para Telas Grandes */
+        @media (min-width: 1440px) {
+            .container {
+                max-width: 1400px;
+            }
+            
+            .drinks-grid {
+                grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            }
+        }
+
+        /* Ajustes para telas muito pequenas */
+        @media (max-width: 360px) {
+            .container {
+                padding: 8px;
+            }
+            
+            .drinks-grid {
+                grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+                gap: 8px;
+            }
+            
+            .drink-item {
+                padding: 8px;
+                min-height: 100px;
+            }
+            
+            .tab-btn {
+                min-width: 70px;
+                padding: 10px 6px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <div class="header-content">
+                <div class="logo">
+                    <span class="logo-icon">🍸</span>
+                    Bar <span>Sena</span>
+                </div>
+                <div>Sistema de Comandas</div>
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        <!-- Navegação por Abas (Mobile/Tablet) -->
+        <div class="tab-navigation">
+            <button class="tab-btn active" data-tab="menu">
+                <span>📋 Cardápio</span>
+            </button>
+            <button class="tab-btn" data-tab="order">
+                <span>🛒 Pedido</span>
+            </button>
+            <button class="tab-btn tab-with-badge" data-tab="kitchen">
+                <span>👨‍🍳 Bar</span>
+                <span class="notification-badge" id="kitchenBadge" style="display: none;">0</span>
+            </button>
+            <button class="tab-btn" data-tab="comandas">
+                <span>📝 Comandas</span>
+            </button>
+        </div>
+
+        <div class="main-content">
+            <!-- Painel de Bebidas -->
+            <div class="tab-content active" id="menu-content">
+                <div class="card">
+                    <h2 class="card-title">
+                        <i>📋</i> Cardápio de Bebidas
+                    </h2>
+                    
+                    <div class="categories">
+                        <!-- As categorias serão adicionadas dinamicamente via JavaScript -->
+                    </div>
+                    
+                    <div class="drinks-grid">
+                        <!-- As bebidas serão adicionadas dinamicamente via JavaScript -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Painel do Pedido -->
+            <div class="tab-content" id="order-content">
+                <div class="card">
+                    <h2 class="card-title">
+                        <i>🛒</i> Pedido Atual
+                    </h2>
+                    
+                    <div class="comanda-info">
+                        <input type="text" class="comanda-input" id="comandaNumber" placeholder="Número da Comanda" aria-label="Número da Comanda">
+                        <input type="text" class="comanda-input" id="clientName" placeholder="Nome do Cliente" aria-label="Nome do Cliente">
+                    </div>
+                    
+                    <div class="order-items" id="orderItems">
+                        <div class="empty-state">
+                            <i>🛒</i>
+                            <p>Nenhum item adicionado ao pedido</p>
+                        </div>
+                    </div>
+                    
+                    <div class="order-total">
+                        <span>Total:</span>
+                        <span id="orderTotal">R$ 0,00</span>
+                    </div>
+                    
+                    <div class="action-buttons">
+                        <button class="btn btn-danger" id="clearOrder" aria-label="Limpar pedido">
+                            <i>🗑️</i> Limpar
+                        </button>
+                        <button class="btn btn-primary" id="addToComanda" aria-label="Adicionar à comanda">
+                            <i>➕</i> Adicionar
+                        </button>
+                        <button class="btn btn-success" id="sendToKitchen" aria-label="Enviar para o bar">
+                            <i>👨‍🍳</i> Enviar p/ Bar
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Painel do Bar/Cozinha -->
+            <div class="tab-content" id="kitchen-content">
+                <div class="card kitchen-orders">
+                    <h2 class="card-title">
+                        <i>👨‍🍳</i> Pedidos para Preparo
+                    </h2>
+                    <div id="kitchenOrders">
+                        <div class="empty-state">
+                            <i>🍳</i>
+                            <p>Nenhum pedido para preparo</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Comandas Ativas -->
+            <div class="tab-content" id="comandas-content">
+                <div class="card active-comandas">
+                    <h2 class="card-title">
+                        <i>📝</i> Comandas Ativas
+                    </h2>
+                    <div id="activeComandas">
+                        <div class="empty-state">
+                            <i>📋</i>
+                            <p>Nenhuma comanda ativa no momento</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para Visualização de Comanda -->
+    <div class="modal" id="comandaModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle">Detalhes da Comanda</h3>
+                <button class="modal-close" id="closeModal" aria-label="Fechar modal">&times;</button>
+            </div>
+            <div id="modalBody">
+                <!-- Conteúdo do modal será preenchido via JavaScript -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // DADOS COMPLETOS DE TODAS AS BEBIDAS
+        const drinks = [
+            // 🍸 DRINKS & COQUETÉIS
+            { id: 1, name: "Caipiro (rum e limão)", price: 20.00, category: "Drinks & Coquetéis", icon: "🍹", type: "bar" },
+            { id: 2, name: "Caipiro (cachaça 51)", price: 22.00, category: "Drinks & Coquetéis", icon: "🍹", type: "bar" },
+            { id: 3, name: "Caipiro especial", price: 26.00, category: "Drinks & Coquetéis", icon: "🍹", type: "bar" },
+            { id: 4, name: "Caipiro com outras frutas (cachaça 51)", price: 26.00, category: "Drinks & Coquetéis", icon: "🍹", type: "bar" },
+            { id: 5, name: "Caipiro/outras frutas (cachaça especial)", price: 30.00, category: "Drinks & Coquetéis", icon: "🍹", type: "bar" },
+            { id: 6, name: "Caipiro/outras frutas (vodka nacional)", price: 30.00, category: "Drinks & Coquetéis", icon: "🍹", type: "bar" },
+            { id: 7, name: "Caipiro (vodka nacional)", price: 28.00, category: "Drinks & Coquetéis", icon: "🍹", type: "bar" },
+            { id: 8, name: "Caipiro com Absolut", price: 30.00, category: "Drinks & Coquetéis", icon: "🍹", type: "bar" },
+            { id: 9, name: "Caipiro com Absolut e outras frutas", price: 34.00, category: "Drinks & Coquetéis", icon: "🍹", type: "bar" },
+            { id: 10, name: "Caipiro/Belvedere ou Grey Goose", price: 38.00, category: "Drinks & Coquetéis", icon: "🍹", type: "bar" },
+            { id: 11, name: "Aperol Spritz", price: 30.00, category: "Drinks & Coquetéis", icon: "🍹", type: "bar" },
+            { id: 12, name: "Dry Martini", price: 24.00, category: "Drinks & Coquetéis", icon: "🍹", type: "bar" },
+            { id: 13, name: "Garibaldi", price: 26.00, category: "Drinks & Coquetéis", icon: "🍹", type: "bar" },
+            { id: 14, name: "Gin Basil Smash", price: 28.00, category: "Drinks & Coquetéis", icon: "🍹", type: "bar" },
+            { id: 15, name: "Moscow Mule", price: 30.00, category: "Drinks & Coquetéis", icon: "🍹", type: "bar" },
+            { id: 16, name: "Mint Julep", price: 26.00, category: "Drinks & Coquetéis", icon: "🍹", type: "bar" },
+            { id: 17, name: "Margarita", price: 28.00, category: "Drinks & Coquetéis", icon: "🍹", type: "bar" },
+            { id: 18, name: "Negroni", price: 26.00, category: "Drinks & Coquetéis", icon: "🍹", type: "bar" },
+            { id: 19, name: "Mojito", price: 28.00, category: "Drinks & Coquetéis", icon: "🍹", type: "bar" },
+            { id: 20, name: "Fitzgerald", price: 26.00, category: "Drinks & Coquetéis", icon: "🍹", type: "bar" },
+            { id: 21, name: "Dama de Vermelho", price: 24.00, category: "Drinks & Coquetéis", icon: "🍹", type: "bar" },
+            { id: 22, name: "Ludovicense", price: 24.00, category: "Drinks & Coquetéis", icon: "🍹", type: "bar" },
+
+            // 🍺 CERVEJAS
+            { id: 23, name: "Bohemia (long neck)", price: 12.00, category: "Cervejas", icon: "🍺", type: "bar" },
+            { id: 24, name: "Corona (long neck)", price: 12.00, category: "Cervejas", icon: "🍺", type: "bar" },
+            { id: 25, name: "Budweiser (long neck)", price: 12.00, category: "Cervejas", icon: "🍺", type: "bar" },
+            { id: 26, name: "Stella Artois (long neck)", price: 15.00, category: "Cervejas", icon: "🍺", type: "bar" },
+            { id: 27, name: "Heineken (long neck)", price: 15.00, category: "Cervejas", icon: "🍺", type: "bar" },
+            { id: 28, name: "Heineken (600 ml)", price: 24.00, category: "Cervejas", icon: "🍺", type: "bar" },
+
+            // ⚡ ENERGÉTICO
+            { id: 29, name: "Energético", price: 16.00, category: "Energético", icon: "⚡", type: "bar" },
+
+            // 🍇 VINHOS - ARGENTINA
+            { id: 30, name: "Lavid Blend", price: 90.00, category: "Vinhos Argentina", icon: "🍷", type: "bar" },
+            { id: 31, name: "Astica (Rosé)", price: 80.00, category: "Vinhos Argentina", icon: "🍷", type: "bar" },
+            { id: 32, name: "Cordero (Torrontés)", price: 101.00, category: "Vinhos Argentina", icon: "🍷", type: "bar" },
+            { id: 33, name: "Septima (Chardonnay)", price: 102.00, category: "Vinhos Argentina", icon: "🍷", type: "bar" },
+            { id: 34, name: "Trapiche (Cabernet Sauvignon)", price: 89.00, category: "Vinhos Argentina", icon: "🍷", type: "bar" },
+            { id: 35, name: "Lavid Blend Tinto", price: 90.00, category: "Vinhos Argentina", icon: "🍷", type: "bar" },
+            { id: 36, name: "Latitud 33 (Malbec)", price: 90.00, category: "Vinhos Argentina", icon: "🍷", type: "bar" },
+            { id: 37, name: "Cordero (Cabernet Sauvignon)", price: 101.00, category: "Vinhos Argentina", icon: "🍷", type: "bar" },
+            { id: 38, name: "Cuesta Madero (Cabernet Sauvignon)", price: 99.00, category: "Vinhos Argentina", icon: "🍷", type: "bar" },
+            { id: 39, name: "Cuesta Madero (Malbec)", price: 99.00, category: "Vinhos Argentina", icon: "🍷", type: "bar" },
+            { id: 40, name: "Chikiyam (Syrah)", price: 101.00, category: "Vinhos Argentina", icon: "🍷", type: "bar" },
+            { id: 41, name: "Ique (Cabernet Sauvignon)", price: 109.00, category: "Vinhos Argentina", icon: "🍷", type: "bar" },
+            { id: 42, name: "Septima (Malbec)", price: 115.00, category: "Vinhos Argentina", icon: "🍷", type: "bar" },
+            { id: 43, name: "Malacara (Malbec)", price: 115.00, category: "Vinhos Argentina", icon: "🍷", type: "bar" },
+
+            // VINHOS - ÁFRICA DO SUL
+            { id: 44, name: "Two Oceans (Pinotage)", price: 95.00, category: "Vinhos Importados", icon: "🍷", type: "bar" },
+
+            // VINHOS - BRASIL
+            { id: 45, name: "Casa Perini Solidário (Cabernet Sauvignon/Merlot)", price: 95.00, category: "Vinhos Brasil", icon: "🍷", type: "bar" },
+            { id: 46, name: "Almar (Chardonnay)", price: 75.00, category: "Vinhos Brasil", icon: "🍷", type: "bar" },
+            { id: 47, name: "Almar Rota dos Lençóis (Rosé)", price: 75.00, category: "Vinhos Brasil", icon: "🍷", type: "bar" },
+            { id: 48, name: "Casa Perini Solidário (Rosé)", price: 95.00, category: "Vinhos Brasil", icon: "🍷", type: "bar" },
+
+            // VINHOS - CHILE
+            { id: 49, name: "Casas del Maipo (Chardonnay)", price: 99.00, category: "Vinhos Chile", icon: "🍷", type: "bar" },
+            { id: 50, name: "Bellavista (Chardonnay)", price: 99.00, category: "Vinhos Chile", icon: "🍷", type: "bar" },
+            { id: 51, name: "Signature Reserva Especial (Sauvignon Blanc)", price: 114.00, category: "Vinhos Chile", icon: "🍷", type: "bar" },
+            { id: 52, name: "Casas del Maipo (Merlot e Cabernet)", price: 85.00, category: "Vinhos Chile", icon: "🍷", type: "bar" },
+            { id: 53, name: "Viento del Mar (Pinot Noir)", price: 89.00, category: "Vinhos Chile", icon: "🍷", type: "bar" },
+            { id: 54, name: "Bellavista (Cabernet Sauvignon)", price: 99.00, category: "Vinhos Chile", icon: "🍷", type: "bar" },
+            { id: 55, name: "Bellavista (Carmenere)", price: 99.00, category: "Vinhos Chile", icon: "🍷", type: "bar" },
+            { id: 56, name: "Leon Tarapacá (Cabernet Sauvignon)", price: 105.00, category: "Vinhos Chile", icon: "🍷", type: "bar" },
+            { id: 57, name: "Leon Tarapacá (Merlot)", price: 105.00, category: "Vinhos Chile", icon: "🍷", type: "bar" },
+            { id: 58, name: "Rito (Pinot Noir)", price: 107.00, category: "Vinhos Chile", icon: "🍷", type: "bar" },
+            { id: 59, name: "Rito (Carmenere)", price: 107.00, category: "Vinhos Chile", icon: "🍷", type: "bar" },
+            { id: 60, name: "Signature (Cabernet Sauvignon)", price: 114.00, category: "Vinhos Chile", icon: "🍷", type: "bar" },
+            { id: 61, name: "Signature Reserva Especial (Cabernet Sauvignon)", price: 118.00, category: "Vinhos Chile", icon: "🍷", type: "bar" },
+            { id: 62, name: "Signature Reserva Especial (Carmenere)", price: 118.00, category: "Vinhos Chile", icon: "🍷", type: "bar" },
+            { id: 63, name: "Signature Grand Reserva (Cabernet Sauvignon)", price: 121.00, category: "Vinhos Chile", icon: "🍷", type: "bar" },
+
+            // VINHOS - ITÁLIA
+            { id: 64, name: "Caleo (Pinot Grigio)", price: 95.00, category: "Vinhos Importados", icon: "🍷", type: "bar" },
+            { id: 65, name: "Caleo Primitivo di Manduria (Tinto)", price: 120.00, category: "Vinhos Importados", icon: "🍷", type: "bar" },
+            { id: 66, name: "Vulcanici Montepulciano (Tinto)", price: 99.00, category: "Vinhos Importados", icon: "🍷", type: "bar" },
+
+            // VINHOS - FRANÇA
+            { id: 67, name: "Soleil des Alpes (Rosé)", price: 114.00, category: "Vinhos Importados", icon: "🍷", type: "bar" },
+
+            // VINHOS - PORTUGAL
+            { id: 68, name: "Mandriola de Lisboa", price: 95.00, category: "Vinhos Importados", icon: "🍷", type: "bar" },
+            { id: 69, name: "Reguengos", price: 94.00, category: "Vinhos Importados", icon: "🍷", type: "bar" },
+            { id: 70, name: "EA Cartuxa", price: 113.00, category: "Vinhos Importados", icon: "🍷", type: "bar" },
+            { id: 71, name: "Cabriz", price: 116.00, category: "Vinhos Importados", icon: "🍷", type: "bar" },
+            { id: 72, name: "Porto (cálice)", price: 25.00, category: "Vinhos Importados", icon: "🍷", type: "bar" },
+
+            // VINHOS - URUGUAI
+            { id: 73, name: "Deicas Atlantica (Tannat)", price: 109.00, category: "Vinhos Importados", icon: "🍷", type: "bar" },
+            { id: 74, name: "Bresesti (Sauvignon Blanc)", price: 115.00, category: "Vinhos Importados", icon: "🍷", type: "bar" },
+
+            // VINHOS - ESPANHA
+            { id: 75, name: "Toro Loco (Tempranillo)", price: 88.00, category: "Vinhos Importados", icon: "🍷", type: "bar" },
+            { id: 76, name: "La Baronne (Tempranillo)", price: 98.00, category: "Vinhos Importados", icon: "🍷", type: "bar" },
+            { id: 77, name: "Dom Luciano (Tempranillo)", price: 99.00, category: "Vinhos Importados", icon: "🍷", type: "bar" },
+            { id: 78, name: "Real Companhia de Viños (Garnacha)", price: 99.00, category: "Vinhos Importados", icon: "🍷", type: "bar" },
+            { id: 79, name: "Riscal 1860", price: 110.00, category: "Vinhos Importados", icon: "🍷", type: "bar" },
+
+            // 🥂 ESPUMANTES
+            { id: 80, name: "Casa Perini (Brasil)", price: 91.00, category: "Espumantes", icon: "🥂", type: "bar" },
+            { id: 81, name: "La Baronne Brut (Espanha)", price: 95.00, category: "Espumantes", icon: "🥂", type: "bar" },
+            { id: 82, name: "La Jolie Blanc Brut (França)", price: 95.00, category: "Espumantes", icon: "🥂", type: "bar" },
+            { id: 83, name: "La Jolie Rosé Brut (França)", price: 95.00, category: "Espumantes", icon: "🥂", type: "bar" },
+            { id: 84, name: "Nocturno Brut (Argentina)", price: 95.00, category: "Espumantes", icon: "🥂", type: "bar" },
+            { id: 85, name: "Chandon Brut (França)", price: 101.00, category: "Espumantes", icon: "🥂", type: "bar" },
+            { id: 86, name: "G.H. Mumm C. Rouge Brut (França)", price: 130.00, category: "Espumantes", icon: "🥂", type: "bar" },
+            { id: 87, name: "Veuve Clicquot Brut (França)", price: 320.00, category: "Espumantes", icon: "🥂", type: "bar" },
+            { id: 88, name: "Casa Perini Rosé (Brasil)", price: 91.00, category: "Espumantes", icon: "🥂", type: "bar" },
+            { id: 89, name: "Nocturn Brut (Argentina)", price: 101.00, category: "Espumantes", icon: "🥂", type: "bar" },
+            { id: 90, name: "Chandon Brut (Brasil)", price: 130.00, category: "Espumantes", icon: "🥂", type: "bar" },
+
+            // 🥃 DESTILADOS
+            { id: 91, name: "Gin (nacional)", price: 12.00, category: "Destilados", icon: "🥃", type: "bar" },
+            { id: 92, name: "Gin (importado)", price: 18.00, category: "Destilados", icon: "🥃", type: "bar" },
+            { id: 93, name: "Rum Carta Blanca", price: 12.00, category: "Destilados", icon: "🥃", type: "bar" },
+            { id: 94, name: "Rum Carta Ouro", price: 12.00, category: "Destilados", icon: "🥃", type: "bar" },
+            { id: 95, name: "Vodka Smirnoff", price: 12.00, category: "Destilados", icon: "🥃", type: "bar" },
+            { id: 96, name: "Vodka Wiborowa", price: 18.00, category: "Destilados", icon: "🥃", type: "bar" },
+            { id: 97, name: "Vodka Absolut", price: 18.00, category: "Destilados", icon: "🥃", type: "bar" },
+            { id: 98, name: "Círoc", price: 24.00, category: "Destilados", icon: "🥃", type: "bar" },
+            { id: 99, name: "Grey Goose", price: 26.00, category: "Destilados", icon: "🥃", type: "bar" },
+            { id: 100, name: "Vodka Belvedere", price: 26.00, category: "Destilados", icon: "🥃", type: "bar" },
+            { id: 101, name: "Tequila José Cuervo", price: 18.00, category: "Destilados", icon: "🥃", type: "bar" },
+            { id: 102, name: "Domeq", price: 16.00, category: "Destilados", icon: "🥃", type: "bar" },
+            { id: 103, name: "Remy Martin", price: 24.00, category: "Destilados", icon: "🥃", type: "bar" },
+            { id: 104, name: "Couvoisier XO", price: 50.00, category: "Destilados", icon: "🥃", type: "bar" },
+
+            // 🥃 WHISKYS
+            { id: 105, name: "Johnnie Walker Red Label (08 anos)", price: 22.00, category: "Whiskys", icon: "🥃", type: "bar" },
+            { id: 106, name: "Ballantines (08 anos)", price: 22.00, category: "Whiskys", icon: "🥃", type: "bar" },
+            { id: 107, name: "Chivas Regal (12 anos)", price: 24.00, category: "Whiskys", icon: "🥃", type: "bar" },
+            { id: 108, name: "Logan (12 anos)", price: 24.00, category: "Whiskys", icon: "🥃", type: "bar" },
+            { id: 109, name: "Old Parr (12 anos)", price: 26.00, category: "Whiskys", icon: "🥃", type: "bar" },
+            { id: 110, name: "Johnnie Walker Black Label (12 anos)", price: 28.00, category: "Whiskys", icon: "🥃", type: "bar" },
+
+            // 🥃 CACHAÇAS
+            { id: 111, name: "Vale do Riachão Ouro ou Prata", price: 18.00, category: "Cachaças", icon: "🥃", type: "bar" },
+            { id: 112, name: "Capotira", price: 18.00, category: "Cachaças", icon: "🥃", type: "bar" },
+            { id: 113, name: "Baronesa", price: 18.00, category: "Cachaças", icon: "🥃", type: "bar" },
+            { id: 114, name: "Jacobina", price: 18.00, category: "Cachaças", icon: "🥃", type: "bar" },
+            { id: 115, name: "Reserva do Zito", price: 18.00, category: "Cachaças", icon: "🥃", type: "bar" },
+            { id: 116, name: "Tiquira Guaajá (MA)", price: 22.00, category: "Cachaças", icon: "🥃", type: "bar" },
+            { id: 117, name: "Linda (SP)", price: 16.00, category: "Cachaças", icon: "🥃", type: "bar" },
+            { id: 118, name: "Sagatiba Ouro (MG)", price: 16.00, category: "Cachaças", icon: "🥃", type: "bar" },
+            { id: 119, name: "Nega Fulô (RJ)", price: 16.00, category: "Cachaças", icon: "🥃", type: "bar" },
+            { id: 120, name: "Boazinha (MG)", price: 16.00, category: "Cachaças", icon: "🥃", type: "bar" },
+            { id: 121, name: "Salinas (MG)", price: 18.00, category: "Cachaças", icon: "🥃", type: "bar" },
+
+            // 🍷 LICORES
+            { id: 122, name: "Frangélico", price: 24.00, category: "Licores", icon: "🍷", type: "bar" },
+            { id: 123, name: "Drambuie", price: 24.00, category: "Licores", icon: "🍷", type: "bar" },
+            { id: 124, name: "43", price: 26.00, category: "Licores", icon: "🍷", type: "bar" },
+            { id: 125, name: "Cointreau", price: 26.00, category: "Licores", icon: "🍷", type: "bar" },
+
+            // 🍸 APERITIVOS
+            { id: 126, name: "Campari", price: 14.00, category: "Aperitivos", icon: "🍸", type: "bar" },
+            { id: 127, name: "Vermute (doce, seco, tinto)", price: 12.00, category: "Aperitivos", icon: "🍸", type: "bar" },
+            { id: 128, name: "Aperol", price: 18.00, category: "Aperitivos", icon: "🍸", type: "bar" },
+
+            // 🧃 BEBIDAS DIVERSAS
+            { id: 129, name: "Água mineral s/ gás", price: 8.00, category: "Bebidas Diversas", icon: "💧", type: "bar" },
+            { id: 130, name: "Água mineral c/ gás", price: 9.00, category: "Bebidas Diversas", icon: "💧", type: "bar" },
+            { id: 131, name: "Refrigerante (lata)", price: 8.00, category: "Bebidas Diversas", icon: "🥤", type: "bar" },
+
+            // SUCOS
+            { id: 132, name: "Copo polpa (350ml)", price: 12.00, category: "Sucos", icon: "🧃", type: "bar" },
+            { id: 133, name: "Copo de Laranja, Limão ou Abacaxi", price: 16.00, category: "Sucos", icon: "🧃", type: "bar" },
+            { id: 134, name: "Copo Bacuri ou Cupuaçu (350ml)", price: 18.00, category: "Sucos", icon: "🧃", type: "bar" },
+            { id: 135, name: "Suco polpa composto (copo 350ml)", price: 20.00, category: "Sucos", icon: "🧃", type: "bar" },
+            { id: 136, name: "Suco polpa (jarra pequena 500ml)", price: 26.00, category: "Sucos", icon: "🧃", type: "bar" },
+            { id: 137, name: "Suco polpa (jarra grande 1300ml)", price: 30.00, category: "Sucos", icon: "🧃", type: "bar" },
+            { id: 138, name: "Suco Bacuri ou Cupuaçu (jarra grande)", price: 32.00, category: "Sucos", icon: "🧃", type: "bar" },
+            { id: 139, name: "Suco polpa composto (jarra pequena)", price: 28.00, category: "Sucos", icon: "🧃", type: "bar" },
+            { id: 140, name: "Suco polpa composto (jarra grande)", price: 32.00, category: "Sucos", icon: "🧃", type: "bar" },
+            { id: 141, name: "Suco de uva integral (garrafa)", price: 18.00, category: "Sucos", icon: "🧃", type: "bar" },
+            { id: 142, name: "Adicional de leite", price: 4.00, category: "Sucos", icon: "🧃", type: "bar" },
+
+            // ÁGUA DE COCO
+            { id: 143, name: "Água de Coco (copo 350ml)", price: 14.00, category: "Bebidas Diversas", icon: "🥥", type: "bar" },
+            { id: 144, name: "Água de Coco (jarra pequena 500ml)", price: 20.00, category: "Bebidas Diversas", icon: "🥥", type: "bar" },
+            { id: 145, name: "Água de Coco (jarra grande 1300ml)", price: 26.00, category: "Bebidas Diversas", icon: "🥥", type: "bar" },
+
+            // CAFÉS & CHÁS
+            { id: 146, name: "Café expresso", price: 8.00, category: "Cafés & Chás", icon: "☕", type: "bar" },
+            { id: 147, name: "Café Capuccino (pequeno)", price: 14.00, category: "Cafés & Chás", icon: "☕", type: "bar" },
+            { id: 148, name: "Café Capuccino (grande)", price: 20.00, category: "Cafés & Chás", icon: "☕", type: "bar" },
+            { id: 149, name: "Café Especial 'Sensação'", price: 24.00, category: "Cafés & Chás", icon: "☕", type: "bar" },
+            { id: 150, name: "Chá", price: 6.00, category: "Cafés & Chás", icon: "🍵", type: "bar" }
+        ];
+
+        // Estado da aplicação
+        let currentOrder = [];
+        let activeComandas = [];
+        let kitchenOrders = [];
+        let currentCategory = "Todos";
+
+        // Elementos DOM
+        const categoriesContainer = document.querySelector('.categories');
+        const drinksGrid = document.querySelector('.drinks-grid');
+        const orderItems = document.getElementById('orderItems');
+        const orderTotal = document.getElementById('orderTotal');
+        const clearOrderBtn = document.getElementById('clearOrder');
+        const addToComandaBtn = document.getElementById('addToComanda');
+        const sendToKitchenBtn = document.getElementById('sendToKitchen');
+        const comandaNumberInput = document.getElementById('comandaNumber');
+        const clientNameInput = document.getElementById('clientName');
+        const activeComandasContainer = document.getElementById('activeComandas');
+        const kitchenOrdersContainer = document.getElementById('kitchenOrders');
+        const kitchenBadge = document.getElementById('kitchenBadge');
+        const tabBtns = document.querySelectorAll('.tab-btn');
+        const tabContents = document.querySelectorAll('.tab-content');
+        const comandaModal = document.getElementById('comandaModal');
+        const closeModal = document.getElementById('closeModal');
+        const modalBody = document.getElementById('modalBody');
+        const modalTitle = document.getElementById('modalTitle');
+
+        // Inicialização
+        function init() {
+            renderCategories();
+            renderDrinks();
+            updateOrderDisplay();
+            renderActiveComandas();
+            renderKitchenOrders();
+            setupEventListeners();
+        }
+
+        // Configurar event listeners
+        function setupEventListeners() {
+            clearOrderBtn.addEventListener('click', clearOrder);
+            addToComandaBtn.addEventListener('click', addToComanda);
+            sendToKitchenBtn.addEventListener('click', sendToKitchen);
+            closeModal.addEventListener('click', () => comandaModal.style.display = 'none');
+            
+            // Navegação por abas
+            tabBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const tabId = btn.getAttribute('data-tab');
+                    switchTab(tabId);
+                });
+            });
+            
+            // Fechar modal ao clicar fora
+            comandaModal.addEventListener('click', (e) => {
+                if (e.target === comandaModal) {
+                    comandaModal.style.display = 'none';
+                }
+            });
+
+            // Tecla ESC para fechar modal
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    comandaModal.style.display = 'none';
+                }
+            });
+        }
+
+        // Alternar entre abas
+        function switchTab(tabId) {
+            // Atualizar botões ativos
+            tabBtns.forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.getAttribute('data-tab') === tabId) {
+                    btn.classList.add('active');
+                }
+            });
+            
+            // Atualizar conteúdo ativo
+            tabContents.forEach(content => {
+                content.classList.remove('active');
+                if (content.id === `${tabId}-content`) {
+                    content.classList.add('active');
+                }
+            });
+        }
+
+        // Renderizar categorias
+        function renderCategories() {
+            const categories = ["Todos", ...new Set(drinks.map(drink => drink.category))];
+            
+            categoriesContainer.innerHTML = '';
+            categories.forEach(category => {
+                const categoryElement = document.createElement('button');
+                categoryElement.className = `category-btn ${category === "Todos" ? 'active' : ''}`;
+                categoryElement.textContent = category;
+                categoryElement.setAttribute('aria-label', `Filtrar por ${category}`);
+                categoryElement.addEventListener('click', () => filterByCategory(category));
+                categoriesContainer.appendChild(categoryElement);
+            });
+        }
+
+        // Filtrar por categoria
+        function filterByCategory(category) {
+            currentCategory = category;
+            
+            // Atualizar botões ativos
+            document.querySelectorAll('.category-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            renderDrinks();
+        }
+
+        // Renderizar as bebidas no cardápio
+        function renderDrinks() {
+            drinksGrid.innerHTML = '';
+            
+            const filteredDrinks = currentCategory === "Todos" 
+                ? drinks 
+                : drinks.filter(drink => drink.category === currentCategory);
+            
+            if (filteredDrinks.length === 0) {
+                drinksGrid.innerHTML = '<div class="empty-state"><i>🍹</i><p>Nenhuma bebida nesta categoria</p></div>';
+                return;
+            }
+            
+            filteredDrinks.forEach(drink => {
+                const drinkElement = document.createElement('div');
+                drinkElement.className = 'drink-item fade-in';
+                drinkElement.innerHTML = `
+                    <div>
+                        <div class="drink-icon">${drink.icon}</div>
+                        <div class="drink-name">${drink.name}</div>
+                        <div class="drink-details">${drink.category}</div>
+                    </div>
+                    <div class="drink-price">R$ ${drink.price.toFixed(2)}</div>
+                `;
+                drinkElement.addEventListener('click', () => addToOrder(drink));
+                drinkElement.setAttribute('role', 'button');
+                drinkElement.setAttribute('tabindex', '0');
+                drinkElement.setAttribute('aria-label', `Adicionar ${drink.name} por R$ ${drink.price.toFixed(2)}`);
+                
+                // Suporte para teclado
+                drinkElement.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        addToOrder(drink);
+                    }
+                });
+                
+                drinksGrid.appendChild(drinkElement);
+            });
+        }
+
+        // Adicionar bebida ao pedido atual
+        function addToOrder(drink) {
+            const existingItem = currentOrder.find(item => item.id === drink.id);
+            
+            if (existingItem) {
+                existingItem.quantity += 1;
+            } else {
+                currentOrder.push({
+                    id: drink.id,
+                    name: drink.name,
+                    price: drink.price,
+                    quantity: 1,
+                    icon: drink.icon,
+                    type: drink.type
+                });
+            }
+            
+            updateOrderDisplay();
+            switchTab('order');
+            
+            // Feedback visual
+            const drinkElement = event.target.closest('.drink-item');
+            if (drinkElement) {
+                drinkElement.style.transform = 'scale(0.95)';
+                setTimeout(() => {
+                    drinkElement.style.transform = '';
+                }, 200);
+            }
+        }
+
+        // Atualizar a exibição do pedido
+        function updateOrderDisplay() {
+            orderItems.innerHTML = '';
+            
+            if (currentOrder.length === 0) {
+                orderItems.innerHTML = '<div class="empty-state"><i>🛒</i><p>Nenhum item adicionado ao pedido</p></div>';
+                orderTotal.textContent = 'R$ 0,00';
+                return;
+            }
+            
+            let total = 0;
+            
+            currentOrder.forEach(item => {
+                const itemTotal = item.price * item.quantity;
+                total += itemTotal;
+                
+                const orderItemElement = document.createElement('div');
+                orderItemElement.className = 'order-item fade-in';
+                orderItemElement.innerHTML = `
+                    <div class="item-info">
+                        <div class="item-name">${item.name}</div>
+                        <div class="item-price">R$ ${item.price.toFixed(2)}</div>
+                    </div>
+                    <div class="item-controls">
+                        <button class="quantity-btn decrease" data-id="${item.id}" aria-label="Diminuir quantidade">-</button>
+                        <span class="quantity">${item.quantity}</span>
+                        <button class="quantity-btn increase" data-id="${item.id}" aria-label="Aumentar quantidade">+</button>
+                        <button class="remove-btn" data-id="${item.id}" aria-label="Remover item">X</button>
+                    </div>
+                `;
+                
+                orderItems.appendChild(orderItemElement);
+            });
+            
+            // Adicionar event listeners para os botões de quantidade
+            document.querySelectorAll('.decrease').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const id = parseInt(e.target.getAttribute('data-id'));
+                    decreaseQuantity(id);
+                });
+            });
+            
+            document.querySelectorAll('.increase').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const id = parseInt(e.target.getAttribute('data-id'));
+                    increaseQuantity(id);
+                });
+            });
+            
+            document.querySelectorAll('.remove-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const id = parseInt(e.target.getAttribute('data-id'));
+                    removeFromOrder(id);
+                });
+            });
+            
+            orderTotal.textContent = `R$ ${total.toFixed(2)}`;
+        }
+
+        // Diminuir quantidade de um item
+        function decreaseQuantity(id) {
+            const item = currentOrder.find(item => item.id === id);
+            if (item && item.quantity > 1) {
+                item.quantity -= 1;
+                updateOrderDisplay();
+            }
+        }
+
+        // Aumentar quantidade de um item
+        function increaseQuantity(id) {
+            const item = currentOrder.find(item => item.id === id);
+            if (item) {
+                item.quantity += 1;
+                updateOrderDisplay();
+            }
+        }
+
+        // Remover item do pedido
+        function removeFromOrder(id) {
+            currentOrder = currentOrder.filter(item => item.id !== id);
+            updateOrderDisplay();
+        }
+
+        // Limpar pedido atual
+        function clearOrder() {
+            if (currentOrder.length === 0) return;
+            
+            if (confirm('Tem certeza que deseja limpar o pedido atual?')) {
+                currentOrder = [];
+                updateOrderDisplay();
+            }
+        }
+
+        // Adicionar pedido à comanda
+        function addToComanda() {
+            const comandaNumber = comandaNumberInput.value.trim();
+            const clientName = clientNameInput.value.trim();
+            
+            if (!comandaNumber) {
+                alert('Por favor, informe o número da comanda.');
+                comandaNumberInput.focus();
+                return;
+            }
+            
+            if (currentOrder.length === 0) {
+                alert('Adicione pelo menos um item ao pedido.');
+                return;
+            }
+            
+            // Verificar se a comanda já existe
+            let comanda = activeComandas.find(c => c.number === comandaNumber);
+            
+            if (comanda) {
+                // Adicionar itens à comanda existente
+                currentOrder.forEach(newItem => {
+                    const existingItem = comanda.items.find(item => item.id === newItem.id);
+                    
+                    if (existingItem) {
+                        existingItem.quantity += newItem.quantity;
+                    } else {
+                        comanda.items.push({...newItem});
+                    }
+                });
+            } else {
+                // Criar nova comanda
+                comanda = {
+                    number: comandaNumber,
+                    client: clientName || 'Cliente não identificado',
+                    items: JSON.parse(JSON.stringify(currentOrder)),
+                    createdAt: new Date()
+                };
+                activeComandas.push(comanda);
+            }
+            
+            // Limpar pedido atual
+            currentOrder = [];
+            updateOrderDisplay();
+            comandaNumberInput.value = '';
+            clientNameInput.value = '';
+            
+            // Atualizar exibição das comandas ativas
+            renderActiveComandas();
+            switchTab('comandas');
+            
+            alert(`Pedido adicionado à comanda ${comandaNumber}`);
+        }
+
+        // Enviar pedido para o bar/cozinha
+        function sendToKitchen() {
+            const comandaNumber = comandaNumberInput.value.trim();
+            const clientName = clientNameInput.value.trim();
+            
+            if (!comandaNumber) {
+                alert('Por favor, informe o número da comanda.');
+                comandaNumberInput.focus();
+                return;
+            }
+            
+            if (currentOrder.length === 0) {
+                alert('Adicione pelo menos um item ao pedido.');
+                return;
+            }
+            
+            // Criar pedido para o bar/cozinha
+            const kitchenOrder = {
+                id: Date.now(),
+                comandaNumber: comandaNumber,
+                clientName: clientName || 'Cliente não identificado',
+                items: JSON.parse(JSON.stringify(currentOrder)),
+                status: 'pending',
+                createdAt: new Date(),
+                sentAt: new Date()
+            };
+            
+            kitchenOrders.push(kitchenOrder);
+            
+            // Limpar pedido atual
+            currentOrder = [];
+            updateOrderDisplay();
+            comandaNumberInput.value = '';
+            clientNameInput.value = '';
+            
+            // Atualizar exibição dos pedidos do bar/cozinha
+            renderKitchenOrders();
+            updateKitchenBadge();
+            switchTab('kitchen');
+            
+            alert(`Pedido enviado para o bar/cozinha!`);
+        }
+
+        // Renderizar pedidos do bar/cozinha
+        function renderKitchenOrders() {
+            kitchenOrdersContainer.innerHTML = '';
+            
+            if (kitchenOrders.length === 0) {
+                kitchenOrdersContainer.innerHTML = '<div class="empty-state"><i>🍳</i><p>Nenhum pedido para preparo</p></div>';
+                return;
+            }
+            
+            // Ordenar pedidos: pendentes primeiro, depois por data
+            const sortedOrders = [...kitchenOrders].sort((a, b) => {
+                if (a.status === b.status) {
+                    return new Date(a.sentAt) - new Date(b.sentAt);
+                }
+                return a.status === 'pending' ? -1 : 1;
+            });
+            
+            sortedOrders.forEach(order => {
+                const orderElement = document.createElement('div');
+                orderElement.className = `order-card ${order.status === 'ready' ? 'ready' : ''} fade-in`;
+                
+                const timeAgo = getTimeAgo(order.sentAt);
+                const itemsList = order.items.map(item => `
+                    <div class="order-item-kitchen">
+                        <div>
+                            <span class="order-item-quantity">${item.quantity}x</span>
+                            ${item.name}
+                        </div>
+                        <div>${item.type === 'bar' ? '🍸' : '🍳'}</div>
+                    </div>
+                `).join('');
+                
+                orderElement.innerHTML = `
+                    <div class="order-header">
+                        <div class="order-id">Comanda #${order.comandaNumber}</div>
+                        <div class="order-time">${timeAgo}</div>
+                    </div>
+                    <div class="order-client" style="margin-bottom: 10px; color: #666;">
+                        ${order.clientName}
+                    </div>
+                    <div class="order-items-list">
+                        ${itemsList}
+                    </div>
+                    <div class="order-actions">
+                        <button class="status-btn ${order.status === 'pending' ? 'pending' : 'ready'}" data-order-id="${order.id}" aria-label="${order.status === 'pending' ? 'Marcar como pronto' : 'Marcar como em preparo'}">
+                            ${order.status === 'pending' ? '🕐 Preparando' : '✅ Pronto'}
+                        </button>
+                    </div>
+                `;
+                
+                kitchenOrdersContainer.appendChild(orderElement);
+            });
+            
+            // Adicionar event listeners para os botões de status
+            document.querySelectorAll('.status-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const orderId = parseInt(e.target.getAttribute('data-order-id'));
+                    toggleOrderStatus(orderId);
+                });
+            });
+        }
+
+        // Alternar status do pedido (pendente/pronto)
+        function toggleOrderStatus(orderId) {
+            const orderIndex = kitchenOrders.findIndex(order => order.id === orderId);
+            
+            if (orderIndex !== -1) {
+                kitchenOrders[orderIndex].status = kitchenOrders[orderIndex].status === 'pending' ? 'ready' : 'pending';
+                kitchenOrders[orderIndex].readyAt = kitchenOrders[orderIndex].status === 'ready' ? new Date() : null;
+                
+                renderKitchenOrders();
+                updateKitchenBadge();
+                
+                const statusMsg = kitchenOrders[orderIndex].status === 'ready' ? 'pronto' : 'em preparo';
+                alert(`Pedido da comanda #${kitchenOrders[orderIndex].comandaNumber} marcado como ${statusMsg}`);
+            }
+        }
+
+        // Atualizar badge de notificação
+        function updateKitchenBadge() {
+            const pendingOrders = kitchenOrders.filter(order => order.status === 'pending').length;
+            
+            if (pendingOrders > 0) {
+                kitchenBadge.textContent = pendingOrders;
+                kitchenBadge.style.display = 'flex';
+                kitchenBadge.classList.add('pulse');
+            } else {
+                kitchenBadge.style.display = 'none';
+                kitchenBadge.classList.remove('pulse');
+            }
+        }
+
+        // Calcular tempo decorrido
+        function getTimeAgo(date) {
+            const now = new Date();
+            const sent = new Date(date);
+            const diffMs = now - sent;
+            const diffMins = Math.floor(diffMs / 60000);
+            
+            if (diffMins < 1) return 'Agora mesmo';
+            if (diffMins === 1) return '1 min atrás';
+            if (diffMins < 60) return `${diffMins} mins atrás`;
+            
+            const diffHours = Math.floor(diffMins / 60);
+            if (diffHours === 1) return '1 hora atrás';
+            return `${diffHours} horas atrás`;
+        }
+
+        // Renderizar comandas ativas
+        function renderActiveComandas() {
+            activeComandasContainer.innerHTML = '';
+            
+            if (activeComandas.length === 0) {
+                activeComandasContainer.innerHTML = '<div class="empty-state"><i>📋</i><p>Nenhuma comanda ativa no momento</p></div>';
+                return;
+            }
+            
+            activeComandas.forEach(comanda => {
+                const total = comanda.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+                const itemsCount = comanda.items.reduce((count, item) => count + item.quantity, 0);
+                
+                const comandaElement = document.createElement('div');
+                comandaElement.className = 'comanda-item fade-in';
+                comandaElement.innerHTML = `
+                    <div class="comanda-details">
+                        <div class="comanda-number">Comanda #${comanda.number}</div>
+                        <div class="comanda-client">${comanda.client}</div>
+                        <div class="comanda-items">${itemsCount} itens</div>
+                    </div>
+                    <div>
+                        <div class="comanda-total">R$ ${total.toFixed(2)}</div>
+                        <div class="comanda-actions">
+                            <button class="comanda-btn view" data-number="${comanda.number}" aria-label="Ver detalhes da comanda">Ver</button>
+                            <button class="comanda-btn finalize" data-number="${comanda.number}" aria-label="Finalizar comanda">Fechar</button>
+                        </div>
+                    </div>
+                `;
+                
+                activeComandasContainer.appendChild(comandaElement);
+            });
+            
+            // Adicionar event listeners para os botões das comandas
+            document.querySelectorAll('.comanda-btn.view').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const comandaNumber = e.target.getAttribute('data-number');
+                    viewComanda(comandaNumber);
+                });
+            });
+            
+            document.querySelectorAll('.comanda-btn.finalize').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const comandaNumber = e.target.getAttribute('data-number');
+                    finalizeComanda(comandaNumber);
+                });
+            });
+        }
+
+        // Visualizar comanda em modal
+        function viewComanda(comandaNumber) {
+            const comanda = activeComandas.find(c => c.number === comandaNumber);
+            
+            if (!comanda) {
+                alert('Comanda não encontrada.');
+                return;
+            }
+            
+            let comandaDetails = `
+                <div style="margin-bottom: 15px;">
+                    <strong>Comanda #${comanda.number}</strong><br>
+                    <span style="color: #666;">Cliente: ${comanda.client}</span>
+                </div>
+                <div style="border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 10px;">
+                    <strong>Itens do Pedido:</strong>
+                </div>
+            `;
+            
+            comanda.items.forEach(item => {
+                comandaDetails += `
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid #f0f0f0;">
+                        <div>
+                            ${item.quantity}x ${item.name}
+                        </div>
+                        <div style="font-weight: bold;">
+                            R$ ${(item.price * item.quantity).toFixed(2)}
+                        </div>
+                    </div>
+                `;
+            });
+            
+            const total = comanda.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+            comandaDetails += `
+                <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 1.2rem; margin-top: 15px; padding-top: 10px; border-top: 2px solid #eee;">
+                    <div>Total:</div>
+                    <div>R$ ${total.toFixed(2)}</div>
+                </div>
+            `;
+            
+            modalTitle.textContent = `Comanda #${comanda.number}`;
+            modalBody.innerHTML = comandaDetails;
+            comandaModal.style.display = 'flex';
+            
+            // Focar no botão de fechar do modal
+            setTimeout(() => closeModal.focus(), 100);
+        }
+
+        // Finalizar comanda específica
+        function finalizeComanda(comandaNumber) {
+            const comandaIndex = activeComandas.findIndex(c => c.number === comandaNumber);
+            
+            if (comandaIndex === -1) {
+                alert('Comanda não encontrada.');
+                return;
+            }
+            
+            const comanda = activeComandas[comandaIndex];
+            const total = comanda.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+            
+            if (confirm(`Finalizar comanda #${comandaNumber}? Total: R$ ${total.toFixed(2)}`)) {
+                // Remover comanda da lista de ativas
+                activeComandas.splice(comandaIndex, 1);
+                
+                // Atualizar exibição
+                renderActiveComandas();
+                
+                alert(`Comanda ${comandaNumber} finalizada. Total: R$ ${total.toFixed(2)}`);
+            }
+        }
+
+        // Inicializar a aplicação
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
