@@ -1134,6 +1134,7 @@
         let kitchenOrders = [];
         let currentCategory = "Todos";
         let syncInterval = null;
+        let lastSyncTime = 0;
 
         // Configuração do JSONBin (serviço gratuito)
         const JSONBIN_CONFIG = {
@@ -1178,6 +1179,7 @@
         // Carregar dados da nuvem
         async function loadFromCloud() {
             try {
+                console.log('🔄 Carregando dados da nuvem...');
                 const response = await fetch(`${JSONBIN_CONFIG.BASE_URL}/${JSONBIN_CONFIG.BIN_ID}/latest`, {
                     headers: {
                         'X-Master-Key': JSONBIN_CONFIG.API_KEY
@@ -1188,18 +1190,30 @@
                     const data = await response.json();
                     const sharedData = data.record;
                     
+                    console.log('📦 Dados recebidos da nuvem:', sharedData);
+                    
                     if (sharedData.activeComandas) {
                         activeComandas = sharedData.activeComandas;
+                        console.log(`📋 ${activeComandas.length} comandas carregadas`);
                     }
                     if (sharedData.kitchenOrders) {
                         kitchenOrders = sharedData.kitchenOrders;
+                        console.log(`👨‍🍳 ${kitchenOrders.length} pedidos do bar carregados`);
                     }
                     
-                    console.log('Dados carregados da nuvem');
+                    // Atualizar a interface
+                    renderActiveComandas();
+                    renderKitchenOrders();
+                    updateKitchenBadge();
+                    
                     updateConnectionStatus(true);
+                    showNotification('✅ Dados sincronizados com sucesso!');
+                } else {
+                    throw new Error('Resposta não OK');
                 }
             } catch (error) {
-                console.log('Usando dados locais - não foi possível conectar à nuvem');
+                console.log('❌ Erro ao carregar da nuvem:', error);
+                console.log('📁 Usando dados locais...');
                 loadFromStorage();
                 updateConnectionStatus(false);
             }
@@ -1210,10 +1224,11 @@
             const dataToSave = {
                 activeComandas,
                 kitchenOrders,
-                lastUpdate: new Date().toISOString()
+                lastUpdate: Date.now()
             };
 
             try {
+                console.log('💾 Salvando dados na nuvem...', dataToSave);
                 const response = await fetch(`${JSONBIN_CONFIG.BASE_URL}/${JSONBIN_CONFIG.BIN_ID}`, {
                     method: 'PUT',
                     headers: {
@@ -1224,12 +1239,16 @@
                 });
 
                 if (response.ok) {
-                    console.log('Dados salvos na nuvem');
+                    console.log('✅ Dados salvos na nuvem com sucesso!');
+                    lastSyncTime = Date.now();
                     updateConnectionStatus(true);
                     return true;
+                } else {
+                    throw new Error('Resposta não OK');
                 }
             } catch (error) {
-                console.log('Erro ao salvar na nuvem, usando armazenamento local');
+                console.log('❌ Erro ao salvar na nuvem:', error);
+                console.log('📁 Salvando localmente...');
                 updateConnectionStatus(false);
             }
             
@@ -1240,10 +1259,10 @@
 
         // Sincronização em tempo real (polling)
         function startCloudSync() {
-            // Sincronizar a cada 3 segundos
+            // Sincronizar a cada 2 segundos
             syncInterval = setInterval(async () => {
                 await syncWithCloud();
-            }, 3000);
+            }, 2000);
         }
 
         // Sincronizar com a nuvem
@@ -1251,7 +1270,8 @@
             try {
                 const response = await fetch(`${JSONBIN_CONFIG.BASE_URL}/${JSONBIN_CONFIG.BIN_ID}/latest`, {
                     headers: {
-                        'X-Master-Key': JSONBIN_CONFIG.API_KEY
+                        'X-Master-Key': JSONBIN_CONFIG.API_KEY,
+                        'Cache-Control': 'no-cache'
                     }
                 });
                 
@@ -1260,28 +1280,41 @@
                     const sharedData = data.record;
                     
                     // Verificar se houve mudanças remotas
-                    const remoteUpdated = new Date(sharedData.lastUpdate).getTime();
-                    const localUpdated = getLastUpdateTime();
+                    const remoteUpdated = sharedData.lastUpdate || 0;
                     
-                    if (remoteUpdated > localUpdated) {
-                        console.log('Atualizando dados da nuvem');
+                    if (remoteUpdated > lastSyncTime) {
+                        console.log('🔄 Atualizando dados da nuvem...');
                         
-                        if (sharedData.activeComandas) {
+                        let hasChanges = false;
+                        
+                        // Verificar mudanças nas comandas
+                        if (sharedData.activeComandas && JSON.stringify(sharedData.activeComandas) !== JSON.stringify(activeComandas)) {
                             activeComandas = sharedData.activeComandas;
                             renderActiveComandas();
+                            hasChanges = true;
+                            console.log('📋 Comandas atualizadas');
                         }
-                        if (sharedData.kitchenOrders) {
+                        
+                        // Verificar mudanças nos pedidos do bar
+                        if (sharedData.kitchenOrders && JSON.stringify(sharedData.kitchenOrders) !== JSON.stringify(kitchenOrders)) {
                             kitchenOrders = sharedData.kitchenOrders;
                             renderKitchenOrders();
                             updateKitchenBadge();
+                            hasChanges = true;
+                            console.log('👨‍🍳 Pedidos do bar atualizados');
                         }
                         
-                        showNotification('Dados atualizados em tempo real!');
+                        if (hasChanges) {
+                            showNotification('🔄 Dados atualizados em tempo real!');
+                        }
+                        
+                        lastSyncTime = remoteUpdated;
                     }
                     
                     updateConnectionStatus(true);
                 }
             } catch (error) {
+                console.log('❌ Erro na sincronização:', error);
                 updateConnectionStatus(false);
             }
         }
@@ -1305,10 +1338,17 @@
 
         // Sistema de notificação
         function showNotification(message) {
+            // Verificar se já existe uma notificação
+            const existingNotification = document.querySelector('.custom-notification');
+            if (existingNotification) {
+                existingNotification.remove();
+            }
+
             const notification = document.createElement('div');
+            notification.className = 'custom-notification';
             notification.style.cssText = `
                 position: fixed;
-                top: 20px;
+                top: 80px;
                 right: 20px;
                 background: var(--success);
                 color: white;
@@ -1325,7 +1365,9 @@
             setTimeout(() => {
                 notification.style.animation = 'slideOut 0.3s ease';
                 setTimeout(() => {
-                    document.body.removeChild(notification);
+                    if (notification.parentNode) {
+                        document.body.removeChild(notification);
+                    }
                 }, 300);
             }, 3000);
         }
@@ -1358,13 +1400,15 @@
                 
                 if (savedComandas) {
                     activeComandas = JSON.parse(savedComandas);
+                    console.log('📋 Comandas carregadas do localStorage:', activeComandas.length);
                 }
                 
                 if (savedKitchenOrders) {
                     kitchenOrders = JSON.parse(savedKitchenOrders);
+                    console.log('👨‍🍳 Pedidos do bar carregados do localStorage:', kitchenOrders.length);
                 }
             } catch (e) {
-                console.error('Erro ao carregar dados do armazenamento:', e);
+                console.error('❌ Erro ao carregar dados do armazenamento:', e);
             }
         }
 
@@ -1373,8 +1417,9 @@
                 localStorage.setItem(STORAGE_KEYS.ACTIVE_COMANDAS, JSON.stringify(activeComandas));
                 localStorage.setItem(STORAGE_KEYS.KITCHEN_ORDERS, JSON.stringify(kitchenOrders));
                 localStorage.setItem(STORAGE_KEYS.LAST_UPDATE, Date.now().toString());
+                console.log('💾 Dados salvos no localStorage');
             } catch (e) {
-                console.error('Erro ao salvar dados no armazenamento:', e);
+                console.error('❌ Erro ao salvar dados no armazenamento:', e);
             }
         }
 
@@ -1403,6 +1448,28 @@
                     comandaModal.style.display = 'none';
                 }
             });
+
+            // Botão para forçar sincronização manual
+            const syncBtn = document.createElement('button');
+            syncBtn.textContent = '🔄 Sincronizar';
+            syncBtn.style.cssText = `
+                position: fixed;
+                bottom: 20px;
+                right: 20px;
+                background: var(--accent);
+                color: white;
+                border: none;
+                padding: 10px 15px;
+                border-radius: 20px;
+                cursor: pointer;
+                z-index: 1000;
+                box-shadow: var(--shadow);
+            `;
+            syncBtn.onclick = async () => {
+                await loadFromCloud();
+                showNotification('🔄 Sincronização manual realizada!');
+            };
+            document.body.appendChild(syncBtn);
         }
 
         // Funções de renderização (permanecem iguais)
@@ -1575,6 +1642,7 @@
                         comanda.items.push({...newItem});
                     }
                 });
+                console.log(`📝 Comanda ${comandaNumber} atualizada`);
             } else {
                 // Nova comanda
                 comanda = {
@@ -1584,10 +1652,11 @@
                     createdAt: new Date()
                 };
                 activeComandas.push(comanda);
+                console.log(`🆕 Nova comanda ${comandaNumber} criada`);
             }
             
-            // Sincronizar
-            await saveToCloud();
+            // Sincronizar com a nuvem
+            const success = await saveToCloud();
             
             // Limpar e atualizar
             currentOrder = [];
@@ -1597,7 +1666,11 @@
             renderActiveComandas();
             switchTab('comandas');
             
-            alert(`Pedido adicionado à comanda ${comandaNumber}`);
+            if (success) {
+                alert(`✅ Pedido adicionado à comanda ${comandaNumber} e sincronizado!`);
+            } else {
+                alert(`⚠️ Pedido adicionado à comanda ${comandaNumber} (modo offline)`);
+            }
         }
 
         async function sendToKitchen() {
@@ -1625,9 +1698,10 @@
             };
             
             kitchenOrders.push(kitchenOrder);
+            console.log(`👨‍🍳 Novo pedido para o bar: Comanda ${comandaNumber}`);
             
-            // Sincronizar
-            await saveToCloud();
+            // Sincronizar com a nuvem
+            const success = await saveToCloud();
             
             // Limpar e atualizar
             currentOrder = [];
@@ -1638,7 +1712,11 @@
             updateKitchenBadge();
             switchTab('kitchen');
             
-            alert(`Pedido enviado para o bar/cozinha!`);
+            if (success) {
+                alert(`✅ Pedido enviado para o bar e sincronizado!`);
+            } else {
+                alert(`⚠️ Pedido enviado para o bar (modo offline)`);
+            }
         }
 
         async function toggleOrderStatus(orderId) {
@@ -1647,12 +1725,14 @@
                 kitchenOrders[orderIndex].status = kitchenOrders[orderIndex].status === 'pending' ? 'ready' : 'pending';
                 kitchenOrders[orderIndex].readyAt = kitchenOrders[orderIndex].status === 'ready' ? new Date() : null;
                 
+                console.log(`🔄 Status do pedido ${orderId} alterado para: ${kitchenOrders[orderIndex].status}`);
+                
                 await saveToCloud();
                 renderKitchenOrders();
                 updateKitchenBadge();
                 
                 const statusMsg = kitchenOrders[orderIndex].status === 'ready' ? 'pronto' : 'em preparo';
-                alert(`Pedido marcado como ${statusMsg}`);
+                alert(`✅ Pedido marcado como ${statusMsg}`);
             }
         }
 
@@ -1668,9 +1748,11 @@
             
             if (confirm(`Finalizar comanda #${comandaNumber}? Total: R$ ${total.toFixed(2)}`)) {
                 activeComandas.splice(comandaIndex, 1);
+                console.log(`💰 Comanda ${comandaNumber} finalizada. Total: R$ ${total.toFixed(2)}`);
+                
                 await saveToCloud();
                 renderActiveComandas();
-                alert(`Comanda ${comandaNumber} finalizada. Total: R$ ${total.toFixed(2)}`);
+                alert(`✅ Comanda ${comandaNumber} finalizada. Total: R$ ${total.toFixed(2)}`);
             }
         }
 
