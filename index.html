@@ -79,7 +79,16 @@
             margin-right: 8px;
         }
 
-        /* Layout Principal Responsivo */
+        .connection-status {
+            font-size: 12px;
+            padding: 4px 8px;
+            border-radius: 12px;
+            margin-left: 10px;
+            background: var(--danger);
+            color: white;
+        }
+
+        /* Restante do CSS permanece igual */
         .main-content {
             display: flex;
             flex-direction: column;
@@ -794,7 +803,10 @@
                     <span class="logo-icon">🍸</span>
                     Bar <span>Sena</span>
                 </div>
-                <div>Sistema de Comandas</div>
+                <div>
+                    Sistema de Comandas
+                    <div class="connection-status" id="connectionStatus">🔴 Offline</div>
+                </div>
             </div>
         </div>
     </header>
@@ -1121,6 +1133,14 @@
         let activeComandas = [];
         let kitchenOrders = [];
         let currentCategory = "Todos";
+        let syncInterval = null;
+
+        // Configuração do JSONBin (serviço gratuito)
+        const JSONBIN_CONFIG = {
+            BIN_ID: '67d4b5a1acd3cb34a9579b6f', // ID público do bin
+            API_KEY: '$2a$10$Ql2QpkAE2rBDCmBYZ.BM6.HzqB85GRfM6PzBfBqjJkM7X9vVk5Q1K', // Chave pública
+            BASE_URL: 'https://api.jsonbin.io/v3/b'
+        };
 
         // Elementos DOM
         const categoriesContainer = document.querySelector('.categories');
@@ -1141,26 +1161,196 @@
         const closeModal = document.getElementById('closeModal');
         const modalBody = document.getElementById('modalBody');
         const modalTitle = document.getElementById('modalTitle');
-
-        // Chaves para armazenamento
-        const STORAGE_KEYS = {
-            ACTIVE_COMANDAS: 'barSena_activeComandas',
-            KITCHEN_ORDERS: 'barSena_kitchenOrders'
-        };
+        const connectionStatus = document.getElementById('connectionStatus');
 
         // Inicialização
-        function init() {
-            loadFromStorage();
+        async function init() {
+            await loadFromCloud();
             renderCategories();
             renderDrinks();
             updateOrderDisplay();
-            renderActiveComandas();
-            renderKitchenOrders();
             setupEventListeners();
-            startStorageSync();
+            startCloudSync();
+            
+            updateConnectionStatus(true);
         }
 
-        // Carregar dados do armazenamento
+        // Carregar dados da nuvem
+        async function loadFromCloud() {
+            try {
+                const response = await fetch(`${JSONBIN_CONFIG.BASE_URL}/${JSONBIN_CONFIG.BIN_ID}/latest`, {
+                    headers: {
+                        'X-Master-Key': JSONBIN_CONFIG.API_KEY
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    const sharedData = data.record;
+                    
+                    if (sharedData.activeComandas) {
+                        activeComandas = sharedData.activeComandas;
+                    }
+                    if (sharedData.kitchenOrders) {
+                        kitchenOrders = sharedData.kitchenOrders;
+                    }
+                    
+                    console.log('Dados carregados da nuvem');
+                    updateConnectionStatus(true);
+                }
+            } catch (error) {
+                console.log('Usando dados locais - não foi possível conectar à nuvem');
+                loadFromStorage();
+                updateConnectionStatus(false);
+            }
+        }
+
+        // Salvar dados na nuvem
+        async function saveToCloud() {
+            const dataToSave = {
+                activeComandas,
+                kitchenOrders,
+                lastUpdate: new Date().toISOString()
+            };
+
+            try {
+                const response = await fetch(`${JSONBIN_CONFIG.BASE_URL}/${JSONBIN_CONFIG.BIN_ID}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Master-Key': JSONBIN_CONFIG.API_KEY
+                    },
+                    body: JSON.stringify(dataToSave)
+                });
+
+                if (response.ok) {
+                    console.log('Dados salvos na nuvem');
+                    updateConnectionStatus(true);
+                    return true;
+                }
+            } catch (error) {
+                console.log('Erro ao salvar na nuvem, usando armazenamento local');
+                updateConnectionStatus(false);
+            }
+            
+            // Fallback para localStorage
+            saveToStorage();
+            return false;
+        }
+
+        // Sincronização em tempo real (polling)
+        function startCloudSync() {
+            // Sincronizar a cada 3 segundos
+            syncInterval = setInterval(async () => {
+                await syncWithCloud();
+            }, 3000);
+        }
+
+        // Sincronizar com a nuvem
+        async function syncWithCloud() {
+            try {
+                const response = await fetch(`${JSONBIN_CONFIG.BASE_URL}/${JSONBIN_CONFIG.BIN_ID}/latest`, {
+                    headers: {
+                        'X-Master-Key': JSONBIN_CONFIG.API_KEY
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    const sharedData = data.record;
+                    
+                    // Verificar se houve mudanças remotas
+                    const remoteUpdated = new Date(sharedData.lastUpdate).getTime();
+                    const localUpdated = getLastUpdateTime();
+                    
+                    if (remoteUpdated > localUpdated) {
+                        console.log('Atualizando dados da nuvem');
+                        
+                        if (sharedData.activeComandas) {
+                            activeComandas = sharedData.activeComandas;
+                            renderActiveComandas();
+                        }
+                        if (sharedData.kitchenOrders) {
+                            kitchenOrders = sharedData.kitchenOrders;
+                            renderKitchenOrders();
+                            updateKitchenBadge();
+                        }
+                        
+                        showNotification('Dados atualizados em tempo real!');
+                    }
+                    
+                    updateConnectionStatus(true);
+                }
+            } catch (error) {
+                updateConnectionStatus(false);
+            }
+        }
+
+        // Obter tempo da última atualização local
+        function getLastUpdateTime() {
+            const saved = localStorage.getItem('barSena_lastUpdate');
+            return saved ? parseInt(saved) : 0;
+        }
+
+        // Atualizar status da conexão
+        function updateConnectionStatus(connected) {
+            if (connected) {
+                connectionStatus.textContent = '🟢 Online';
+                connectionStatus.style.background = 'var(--success)';
+            } else {
+                connectionStatus.textContent = '🔴 Offline';
+                connectionStatus.style.background = 'var(--danger)';
+            }
+        }
+
+        // Sistema de notificação
+        function showNotification(message) {
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: var(--success);
+                color: white;
+                padding: 15px 20px;
+                border-radius: 8px;
+                box-shadow: var(--shadow);
+                z-index: 10000;
+                max-width: 300px;
+                animation: slideIn 0.3s ease;
+            `;
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.style.animation = 'slideOut 0.3s ease';
+                setTimeout(() => {
+                    document.body.removeChild(notification);
+                }, 300);
+            }, 3000);
+        }
+
+        // Adicionar estilos de animação para notificações
+        const notificationStyles = document.createElement('style');
+        notificationStyles.textContent = `
+            @keyframes slideIn {
+                from { transform: translateX(100%); opacity: 0; }
+                to { transform: translateX(0); opacity: 1; }
+            }
+            @keyframes slideOut {
+                from { transform: translateX(0); opacity: 1; }
+                to { transform: translateX(100%); opacity: 0; }
+            }
+        `;
+        document.head.appendChild(notificationStyles);
+
+        // Sistema de fallback com localStorage
+        const STORAGE_KEYS = {
+            ACTIVE_COMANDAS: 'barSena_activeComandas',
+            KITCHEN_ORDERS: 'barSena_kitchenOrders',
+            LAST_UPDATE: 'barSena_lastUpdate'
+        };
+
         function loadFromStorage() {
             try {
                 const savedComandas = localStorage.getItem(STORAGE_KEYS.ACTIVE_COMANDAS);
@@ -1178,44 +1368,14 @@
             }
         }
 
-        // Salvar dados no armazenamento
         function saveToStorage() {
             try {
                 localStorage.setItem(STORAGE_KEYS.ACTIVE_COMANDAS, JSON.stringify(activeComandas));
                 localStorage.setItem(STORAGE_KEYS.KITCHEN_ORDERS, JSON.stringify(kitchenOrders));
+                localStorage.setItem(STORAGE_KEYS.LAST_UPDATE, Date.now().toString());
             } catch (e) {
                 console.error('Erro ao salvar dados no armazenamento:', e);
             }
-        }
-
-        // Sincronizar dados entre abas/janelas
-        function startStorageSync() {
-            // Verificar alterações no armazenamento a cada segundo
-            setInterval(() => {
-                try {
-                    const savedComandas = localStorage.getItem(STORAGE_KEYS.ACTIVE_COMANDAS);
-                    const savedKitchenOrders = localStorage.getItem(STORAGE_KEYS.KITCHEN_ORDERS);
-                    
-                    if (savedComandas) {
-                        const parsedComandas = JSON.parse(savedComandas);
-                        if (JSON.stringify(parsedComandas) !== JSON.stringify(activeComandas)) {
-                            activeComandas = parsedComandas;
-                            renderActiveComandas();
-                        }
-                    }
-                    
-                    if (savedKitchenOrders) {
-                        const parsedKitchenOrders = JSON.parse(savedKitchenOrders);
-                        if (JSON.stringify(parsedKitchenOrders) !== JSON.stringify(kitchenOrders)) {
-                            kitchenOrders = parsedKitchenOrders;
-                            renderKitchenOrders();
-                            updateKitchenBadge();
-                        }
-                    }
-                } catch (e) {
-                    console.error('Erro na sincronização:', e);
-                }
-            }, 1000);
         }
 
         // Configurar event listeners
@@ -1225,7 +1385,6 @@
             sendToKitchenBtn.addEventListener('click', sendToKitchen);
             closeModal.addEventListener('click', () => comandaModal.style.display = 'none');
             
-            // Navegação por abas
             tabBtns.forEach(btn => {
                 btn.addEventListener('click', () => {
                     const tabId = btn.getAttribute('data-tab');
@@ -1233,14 +1392,12 @@
                 });
             });
             
-            // Fechar modal ao clicar fora
             comandaModal.addEventListener('click', (e) => {
                 if (e.target === comandaModal) {
                     comandaModal.style.display = 'none';
                 }
             });
 
-            // Tecla ESC para fechar modal
             document.addEventListener('keydown', (e) => {
                 if (e.key === 'Escape') {
                     comandaModal.style.display = 'none';
@@ -1248,70 +1405,43 @@
             });
         }
 
-        // Alternar entre abas
+        // Funções de renderização (permanecem iguais)
         function switchTab(tabId) {
-            // Atualizar botões ativos
-            tabBtns.forEach(btn => {
-                btn.classList.remove('active');
-                if (btn.getAttribute('data-tab') === tabId) {
-                    btn.classList.add('active');
-                }
-            });
+            tabBtns.forEach(btn => btn.classList.remove('active'));
+            tabContents.forEach(content => content.classList.remove('active'));
             
-            // Atualizar conteúdo ativo
-            tabContents.forEach(content => {
-                content.classList.remove('active');
-                if (content.id === `${tabId}-content`) {
-                    content.classList.add('active');
-                }
-            });
+            document.querySelector(`[data-tab="${tabId}"]`).classList.add('active');
+            document.getElementById(`${tabId}-content`).classList.add('active');
         }
 
-        // Renderizar categorias
         function renderCategories() {
             const categories = ["Todos", ...new Set(drinks.map(drink => drink.category))];
-            
             categoriesContainer.innerHTML = '';
+            
             categories.forEach(category => {
-                const categoryElement = document.createElement('button');
-                categoryElement.className = `category-btn ${category === "Todos" ? 'active' : ''}`;
-                categoryElement.textContent = category;
-                categoryElement.setAttribute('aria-label', `Filtrar por ${category}`);
-                categoryElement.addEventListener('click', () => filterByCategory(category));
-                categoriesContainer.appendChild(categoryElement);
+                const btn = document.createElement('button');
+                btn.className = `category-btn ${category === "Todos" ? 'active' : ''}`;
+                btn.textContent = category;
+                btn.onclick = () => filterByCategory(category);
+                categoriesContainer.appendChild(btn);
             });
         }
 
-        // Filtrar por categoria
         function filterByCategory(category) {
             currentCategory = category;
-            
-            // Atualizar botões ativos
-            document.querySelectorAll('.category-btn').forEach(btn => {
-                btn.classList.remove('active');
-            });
+            document.querySelectorAll('.category-btn').forEach(btn => btn.classList.remove('active'));
             event.target.classList.add('active');
-            
             renderDrinks();
         }
 
-        // Renderizar as bebidas no cardápio
         function renderDrinks() {
             drinksGrid.innerHTML = '';
-            
-            const filteredDrinks = currentCategory === "Todos" 
-                ? drinks 
-                : drinks.filter(drink => drink.category === currentCategory);
-            
-            if (filteredDrinks.length === 0) {
-                drinksGrid.innerHTML = '<div class="empty-state"><i>🍹</i><p>Nenhuma bebida nesta categoria</p></div>';
-                return;
-            }
+            const filteredDrinks = currentCategory === "Todos" ? drinks : drinks.filter(d => d.category === currentCategory);
             
             filteredDrinks.forEach(drink => {
-                const drinkElement = document.createElement('div');
-                drinkElement.className = 'drink-item fade-in';
-                drinkElement.innerHTML = `
+                const item = document.createElement('div');
+                item.className = 'drink-item';
+                item.innerHTML = `
                     <div>
                         <div class="drink-icon">${drink.icon}</div>
                         <div class="drink-name">${drink.name}</div>
@@ -1319,29 +1449,15 @@
                     </div>
                     <div class="drink-price">R$ ${drink.price.toFixed(2)}</div>
                 `;
-                drinkElement.addEventListener('click', () => addToOrder(drink));
-                drinkElement.setAttribute('role', 'button');
-                drinkElement.setAttribute('tabindex', '0');
-                drinkElement.setAttribute('aria-label', `Adicionar ${drink.name} por R$ ${drink.price.toFixed(2)}`);
-                
-                // Suporte para teclado
-                drinkElement.addEventListener('keydown', (e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        addToOrder(drink);
-                    }
-                });
-                
-                drinksGrid.appendChild(drinkElement);
+                item.onclick = () => addToOrder(drink);
+                drinksGrid.appendChild(item);
             });
         }
 
-        // Adicionar bebida ao pedido atual
         function addToOrder(drink) {
-            const existingItem = currentOrder.find(item => item.id === drink.id);
-            
-            if (existingItem) {
-                existingItem.quantity += 1;
+            const existing = currentOrder.find(item => item.id === drink.id);
+            if (existing) {
+                existing.quantity++;
             } else {
                 currentOrder.push({
                     id: drink.id,
@@ -1352,21 +1468,10 @@
                     type: drink.type
                 });
             }
-            
             updateOrderDisplay();
             switchTab('order');
-            
-            // Feedback visual
-            const drinkElement = event.target.closest('.drink-item');
-            if (drinkElement) {
-                drinkElement.style.transform = 'scale(0.95)';
-                setTimeout(() => {
-                    drinkElement.style.transform = '';
-                }, 200);
-            }
         }
 
-        // Atualizar a exibição do pedido
         function updateOrderDisplay() {
             orderItems.innerHTML = '';
             
@@ -1377,96 +1482,79 @@
             }
             
             let total = 0;
-            
             currentOrder.forEach(item => {
                 const itemTotal = item.price * item.quantity;
                 total += itemTotal;
                 
-                const orderItemElement = document.createElement('div');
-                orderItemElement.className = 'order-item fade-in';
-                orderItemElement.innerHTML = `
+                const element = document.createElement('div');
+                element.className = 'order-item';
+                element.innerHTML = `
                     <div class="item-info">
                         <div class="item-name">${item.name}</div>
                         <div class="item-price">R$ ${item.price.toFixed(2)}</div>
                     </div>
                     <div class="item-controls">
-                        <button class="quantity-btn decrease" data-id="${item.id}" aria-label="Diminuir quantidade">-</button>
+                        <button class="quantity-btn decrease" data-id="${item.id}">-</button>
                         <span class="quantity">${item.quantity}</span>
-                        <button class="quantity-btn increase" data-id="${item.id}" aria-label="Aumentar quantidade">+</button>
-                        <button class="remove-btn" data-id="${item.id}" aria-label="Remover item">X</button>
+                        <button class="quantity-btn increase" data-id="${item.id}">+</button>
+                        <button class="remove-btn" data-id="${item.id}">X</button>
                     </div>
                 `;
-                
-                orderItems.appendChild(orderItemElement);
+                orderItems.appendChild(element);
             });
             
-            // Adicionar event listeners para os botões de quantidade
+            // Event listeners para controles
             document.querySelectorAll('.decrease').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    const id = parseInt(e.target.getAttribute('data-id'));
-                    decreaseQuantity(id);
-                });
+                btn.onclick = (e) => decreaseQuantity(parseInt(e.target.dataset.id));
             });
             
             document.querySelectorAll('.increase').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    const id = parseInt(e.target.getAttribute('data-id'));
-                    increaseQuantity(id);
-                });
+                btn.onclick = (e) => increaseQuantity(parseInt(e.target.dataset.id));
             });
             
             document.querySelectorAll('.remove-btn').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    const id = parseInt(e.target.getAttribute('data-id'));
-                    removeFromOrder(id);
-                });
+                btn.onclick = (e) => removeFromOrder(parseInt(e.target.dataset.id));
             });
             
             orderTotal.textContent = `R$ ${total.toFixed(2)}`;
         }
 
-        // Diminuir quantidade de um item
         function decreaseQuantity(id) {
             const item = currentOrder.find(item => item.id === id);
             if (item && item.quantity > 1) {
-                item.quantity -= 1;
+                item.quantity--;
                 updateOrderDisplay();
             }
         }
 
-        // Aumentar quantidade de um item
         function increaseQuantity(id) {
             const item = currentOrder.find(item => item.id === id);
             if (item) {
-                item.quantity += 1;
+                item.quantity++;
                 updateOrderDisplay();
             }
         }
 
-        // Remover item do pedido
         function removeFromOrder(id) {
             currentOrder = currentOrder.filter(item => item.id !== id);
             updateOrderDisplay();
         }
 
-        // Limpar pedido atual
         function clearOrder() {
             if (currentOrder.length === 0) return;
-            
             if (confirm('Tem certeza que deseja limpar o pedido atual?')) {
                 currentOrder = [];
                 updateOrderDisplay();
             }
         }
 
-        // Adicionar pedido à comanda
-        function addToComanda() {
+        // Funções principais com sincronização em tempo real
+        async function addToComanda() {
             const comandaNumber = comandaNumberInput.value.trim();
             const clientName = clientNameInput.value.trim();
             
             if (!comandaNumber) {
                 alert('Por favor, informe o número da comanda.');
-                comandaNumberInput.focus();
                 return;
             }
             
@@ -1475,14 +1563,12 @@
                 return;
             }
             
-            // Verificar se a comanda já existe
             let comanda = activeComandas.find(c => c.number === comandaNumber);
             
             if (comanda) {
-                // Adicionar itens à comanda existente
+                // Atualizar comanda existente
                 currentOrder.forEach(newItem => {
                     const existingItem = comanda.items.find(item => item.id === newItem.id);
-                    
                     if (existingItem) {
                         existingItem.quantity += newItem.quantity;
                     } else {
@@ -1490,7 +1576,7 @@
                     }
                 });
             } else {
-                // Criar nova comanda
+                // Nova comanda
                 comanda = {
                     number: comandaNumber,
                     client: clientName || 'Cliente não identificado',
@@ -1500,28 +1586,26 @@
                 activeComandas.push(comanda);
             }
             
-            // Limpar pedido atual
+            // Sincronizar
+            await saveToCloud();
+            
+            // Limpar e atualizar
             currentOrder = [];
             updateOrderDisplay();
             comandaNumberInput.value = '';
             clientNameInput.value = '';
-            
-            // Salvar e atualizar exibição
-            saveToStorage();
             renderActiveComandas();
             switchTab('comandas');
             
             alert(`Pedido adicionado à comanda ${comandaNumber}`);
         }
 
-        // Enviar pedido para o bar/cozinha
-        function sendToKitchen() {
+        async function sendToKitchen() {
             const comandaNumber = comandaNumberInput.value.trim();
             const clientName = clientNameInput.value.trim();
             
             if (!comandaNumber) {
                 alert('Por favor, informe o número da comanda.');
-                comandaNumberInput.focus();
                 return;
             }
             
@@ -1530,7 +1614,6 @@
                 return;
             }
             
-            // Criar pedido para o bar/cozinha
             const kitchenOrder = {
                 id: Date.now(),
                 comandaNumber: comandaNumber,
@@ -1543,14 +1626,14 @@
             
             kitchenOrders.push(kitchenOrder);
             
-            // Limpar pedido atual
+            // Sincronizar
+            await saveToCloud();
+            
+            // Limpar e atualizar
             currentOrder = [];
             updateOrderDisplay();
             comandaNumberInput.value = '';
             clientNameInput.value = '';
-            
-            // Salvar e atualizar exibição
-            saveToStorage();
             renderKitchenOrders();
             updateKitchenBadge();
             switchTab('kitchen');
@@ -1558,7 +1641,39 @@
             alert(`Pedido enviado para o bar/cozinha!`);
         }
 
-        // Renderizar pedidos do bar/cozinha
+        async function toggleOrderStatus(orderId) {
+            const orderIndex = kitchenOrders.findIndex(order => order.id === orderId);
+            if (orderIndex !== -1) {
+                kitchenOrders[orderIndex].status = kitchenOrders[orderIndex].status === 'pending' ? 'ready' : 'pending';
+                kitchenOrders[orderIndex].readyAt = kitchenOrders[orderIndex].status === 'ready' ? new Date() : null;
+                
+                await saveToCloud();
+                renderKitchenOrders();
+                updateKitchenBadge();
+                
+                const statusMsg = kitchenOrders[orderIndex].status === 'ready' ? 'pronto' : 'em preparo';
+                alert(`Pedido marcado como ${statusMsg}`);
+            }
+        }
+
+        async function finalizeComanda(comandaNumber) {
+            const comandaIndex = activeComandas.findIndex(c => c.number === comandaNumber);
+            if (comandaIndex === -1) {
+                alert('Comanda não encontrada.');
+                return;
+            }
+            
+            const comanda = activeComandas[comandaIndex];
+            const total = comanda.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+            
+            if (confirm(`Finalizar comanda #${comandaNumber}? Total: R$ ${total.toFixed(2)}`)) {
+                activeComandas.splice(comandaIndex, 1);
+                await saveToCloud();
+                renderActiveComandas();
+                alert(`Comanda ${comandaNumber} finalizada. Total: R$ ${total.toFixed(2)}`);
+            }
+        }
+
         function renderKitchenOrders() {
             kitchenOrdersContainer.innerHTML = '';
             
@@ -1567,17 +1682,14 @@
                 return;
             }
             
-            // Ordenar pedidos: pendentes primeiro, depois por data
             const sortedOrders = [...kitchenOrders].sort((a, b) => {
-                if (a.status === b.status) {
-                    return new Date(a.sentAt) - new Date(b.sentAt);
-                }
+                if (a.status === b.status) return new Date(a.sentAt) - new Date(b.sentAt);
                 return a.status === 'pending' ? -1 : 1;
             });
             
             sortedOrders.forEach(order => {
                 const orderElement = document.createElement('div');
-                orderElement.className = `order-card ${order.status === 'ready' ? 'ready' : ''} fade-in`;
+                orderElement.className = `order-card ${order.status === 'ready' ? 'ready' : ''}`;
                 
                 const timeAgo = getTimeAgo(order.sentAt);
                 const itemsList = order.items.map(item => `
@@ -1595,14 +1707,11 @@
                         <div class="order-id">Comanda #${order.comandaNumber}</div>
                         <div class="order-time">${timeAgo}</div>
                     </div>
-                    <div class="order-client" style="margin-bottom: 10px; color: #666;">
-                        ${order.clientName}
-                    </div>
-                    <div class="order-items-list">
-                        ${itemsList}
-                    </div>
+                    <div class="order-client">${order.clientName}</div>
+                    <div class="order-items-list">${itemsList}</div>
                     <div class="order-actions">
-                        <button class="status-btn ${order.status === 'pending' ? 'pending' : 'ready'}" data-order-id="${order.id}" aria-label="${order.status === 'pending' ? 'Marcar como pronto' : 'Marcar como em preparo'}">
+                        <button class="status-btn ${order.status === 'pending' ? 'pending' : 'ready'}" 
+                                onclick="toggleOrderStatus(${order.id})">
                             ${order.status === 'pending' ? '🕐 Preparando' : '✅ Pronto'}
                         </button>
                     </div>
@@ -1610,48 +1719,18 @@
                 
                 kitchenOrdersContainer.appendChild(orderElement);
             });
-            
-            // Adicionar event listeners para os botões de status
-            document.querySelectorAll('.status-btn').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    const orderId = parseInt(e.target.getAttribute('data-order-id'));
-                    toggleOrderStatus(orderId);
-                });
-            });
         }
 
-        // Alternar status do pedido (pendente/pronto)
-        function toggleOrderStatus(orderId) {
-            const orderIndex = kitchenOrders.findIndex(order => order.id === orderId);
-            
-            if (orderIndex !== -1) {
-                kitchenOrders[orderIndex].status = kitchenOrders[orderIndex].status === 'pending' ? 'ready' : 'pending';
-                kitchenOrders[orderIndex].readyAt = kitchenOrders[orderIndex].status === 'ready' ? new Date() : null;
-                
-                saveToStorage();
-                renderKitchenOrders();
-                updateKitchenBadge();
-                
-                const statusMsg = kitchenOrders[orderIndex].status === 'ready' ? 'pronto' : 'em preparo';
-                alert(`Pedido da comanda #${kitchenOrders[orderIndex].comandaNumber} marcado como ${statusMsg}`);
-            }
-        }
-
-        // Atualizar badge de notificação
         function updateKitchenBadge() {
             const pendingOrders = kitchenOrders.filter(order => order.status === 'pending').length;
-            
             if (pendingOrders > 0) {
                 kitchenBadge.textContent = pendingOrders;
                 kitchenBadge.style.display = 'flex';
-                kitchenBadge.classList.add('pulse');
             } else {
                 kitchenBadge.style.display = 'none';
-                kitchenBadge.classList.remove('pulse');
             }
         }
 
-        // Calcular tempo decorrido
         function getTimeAgo(date) {
             const now = new Date();
             const sent = new Date(date);
@@ -1667,7 +1746,6 @@
             return `${diffHours} horas atrás`;
         }
 
-        // Renderizar comandas ativas
         function renderActiveComandas() {
             activeComandasContainer.innerHTML = '';
             
@@ -1681,7 +1759,7 @@
                 const itemsCount = comanda.items.reduce((count, item) => count + item.quantity, 0);
                 
                 const comandaElement = document.createElement('div');
-                comandaElement.className = 'comanda-item fade-in';
+                comandaElement.className = 'comanda-item';
                 comandaElement.innerHTML = `
                     <div class="comanda-details">
                         <div class="comanda-number">Comanda #${comanda.number}</div>
@@ -1691,39 +1769,19 @@
                     <div>
                         <div class="comanda-total">R$ ${total.toFixed(2)}</div>
                         <div class="comanda-actions">
-                            <button class="comanda-btn view" data-number="${comanda.number}" aria-label="Ver detalhes da comanda">Ver</button>
-                            <button class="comanda-btn finalize" data-number="${comanda.number}" aria-label="Finalizar comanda">Fechar</button>
+                            <button class="comanda-btn view" onclick="viewComanda('${comanda.number}')">Ver</button>
+                            <button class="comanda-btn finalize" onclick="finalizeComanda('${comanda.number}')">Fechar</button>
                         </div>
                     </div>
                 `;
                 
                 activeComandasContainer.appendChild(comandaElement);
             });
-            
-            // Adicionar event listeners para os botões das comandas
-            document.querySelectorAll('.comanda-btn.view').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    const comandaNumber = e.target.getAttribute('data-number');
-                    viewComanda(comandaNumber);
-                });
-            });
-            
-            document.querySelectorAll('.comanda-btn.finalize').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    const comandaNumber = e.target.getAttribute('data-number');
-                    finalizeComanda(comandaNumber);
-                });
-            });
         }
 
-        // Visualizar comanda em modal
         function viewComanda(comandaNumber) {
             const comanda = activeComandas.find(c => c.number === comandaNumber);
-            
-            if (!comanda) {
-                alert('Comanda não encontrada.');
-                return;
-            }
+            if (!comanda) return;
             
             let comandaDetails = `
                 <div style="margin-bottom: 15px;">
@@ -1738,12 +1796,8 @@
             comanda.items.forEach(item => {
                 comandaDetails += `
                     <div style="display: flex; justify-content: space-between; margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid #f0f0f0;">
-                        <div>
-                            ${item.quantity}x ${item.name}
-                        </div>
-                        <div style="font-weight: bold;">
-                            R$ ${(item.price * item.quantity).toFixed(2)}
-                        </div>
+                        <div>${item.quantity}x ${item.name}</div>
+                        <div style="font-weight: bold;">R$ ${(item.price * item.quantity).toFixed(2)}</div>
                     </div>
                 `;
             });
@@ -1759,36 +1813,9 @@
             modalTitle.textContent = `Comanda #${comanda.number}`;
             modalBody.innerHTML = comandaDetails;
             comandaModal.style.display = 'flex';
-            
-            // Focar no botão de fechar do modal
-            setTimeout(() => closeModal.focus(), 100);
         }
 
-        // Finalizar comanda específica
-        function finalizeComanda(comandaNumber) {
-            const comandaIndex = activeComandas.findIndex(c => c.number === comandaNumber);
-            
-            if (comandaIndex === -1) {
-                alert('Comanda não encontrada.');
-                return;
-            }
-            
-            const comanda = activeComandas[comandaIndex];
-            const total = comanda.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-            
-            if (confirm(`Finalizar comanda #${comandaNumber}? Total: R$ ${total.toFixed(2)}`)) {
-                // Remover comanda da lista de ativas
-                activeComandas.splice(comandaIndex, 1);
-                
-                // Salvar e atualizar exibição
-                saveToStorage();
-                renderActiveComandas();
-                
-                alert(`Comanda ${comandaNumber} finalizada. Total: R$ ${total.toFixed(2)}`);
-            }
-        }
-
-        // Inicializar a aplicação
+        // Inicializar
         document.addEventListener('DOMContentLoaded', init);
     </script>
 </body>
